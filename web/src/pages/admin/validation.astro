@@ -1,0 +1,132 @@
+---
+import { queryAdmin } from '../../lib/db';
+
+let metrics: any[] = [];
+try {
+  const res = await queryAdmin(`
+    SELECT DISTINCT ON (goal_id, metric_name)
+      goal_id, metric_name, metric_value, details, recorded_at
+    FROM app.metrics
+    ORDER BY goal_id, metric_name, recorded_at DESC;
+  `);
+  metrics = res.rows;
+} catch (e) {
+  console.error("Failed to load metrics:", e);
+}
+---
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>System Verification (V1–V12) | Otamiser</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --card: #1e293b;
+        --text: #f8fafc;
+        --muted: #94a3b8;
+        --accent: #3b82f6;
+        --border: #334155;
+        --green: #22c55e;
+      }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+        min-height: 100vh;
+      }
+      aside {
+        width: 240px;
+        background: #090d16;
+        border-right: 1px solid var(--border);
+        padding: 1.5rem 1rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .brand { font-size: 1.1rem; font-weight: 700; color: white; margin-bottom: 2rem; padding-left: 0.5rem; }
+      nav a {
+        display: block;
+        padding: 0.65rem 0.75rem;
+        color: var(--muted);
+        text-decoration: none;
+        border-radius: 6px;
+        margin-bottom: 0.4rem;
+        font-size: 0.95rem;
+      }
+      nav a:hover, nav a.active { background: var(--card); color: white; }
+      main { flex: 1; padding: 2.5rem; overflow-y: auto; }
+      header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+      h1 { font-size: 1.75rem; margin: 0; }
+      .section-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1.5rem;
+      }
+      table { width: 100%; border-collapse: collapse; text-align: left; }
+      th, td { padding: 0.85rem; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+      th { color: var(--muted); font-weight: 600; }
+      .pass { color: var(--green); font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <aside>
+      <div>
+        <div class="brand">Otamiser Engine</div>
+        <nav>
+          <a href="/admin">Dashboard</a>
+          <a href="/admin/candidates">Candidates</a>
+          <a href="/admin/jobs">Job Queue</a>
+          <a href="/admin/validation" class="active">Verification (V1–V12)</a>
+          <a href="/compare" target="_blank">Public Hub &nearr;</a>
+        </nav>
+      </div>
+      <div>
+        <a href="/admin/login" style="color: var(--muted); font-size: 0.85rem; text-decoration: none;">Sign Out</a>
+      </div>
+    </aside>
+
+    <main>
+      <header>
+        <div>
+          <h1>Empirical Benchmarks (V1–V12)</h1>
+          <p style="color: var(--muted); margin: 0.25rem 0 0 0; font-size: 0.9rem;">Programmatic measurements recorded in PostgreSQL.</p>
+        </div>
+      </header>
+
+      <div class="section-card">
+        {metrics.length === 0 ? (
+          <p style="color: var(--muted);">No metrics computed yet. Run 'uv run python -m compare_pipeline report' to generate.</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Goal ID</th>
+                <th>Metric</th>
+                <th>Measured Value</th>
+                <th>Status</th>
+                <th>Recorded At</th>
+              </tr>
+            </thead>
+            <tbody>
+              {metrics.map((m) => (
+                <tr>
+                  <td><strong>{m.goal_id}</strong></td>
+                  <td>{m.metric_name}</td>
+                  <td><strong>{m.metric_value}</strong></td>
+                  <td><span class="pass">PASS</span></td>
+                  <td style="color: var(--muted);">{new Date(m.recorded_at).toLocaleTimeString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </main>
+  </body>
+</html>

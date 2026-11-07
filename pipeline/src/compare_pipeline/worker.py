@@ -37,6 +37,7 @@ def register_handler(kind: str):
 @register_handler("seed_catalog")
 def handle_seed_catalog(payload: dict[str, Any]) -> tuple[dict[str, Any], None]:
     from compare_pipeline.catalog import seed_catalog
+
     res = seed_catalog()
     return res, None
 
@@ -44,8 +45,98 @@ def handle_seed_catalog(payload: dict[str, Any]) -> tuple[dict[str, Any], None]:
 @register_handler("discover")
 def handle_discover(payload: dict[str, Any]) -> tuple[dict[str, Any], None]:
     from compare_pipeline.discovery.discovery import run_discovery
+
     res = run_discovery()
     return res, None
+
+
+@register_handler("research")
+def handle_research(
+    payload: dict[str, Any],
+) -> tuple[dict[str, Any], tuple[str, dict[str, Any]] | None]:
+    import uuid
+
+    from compare_pipeline.research import run_competitor_research
+
+    with get_pipeline_session() as session:
+        comp_id = uuid.UUID(payload["competitor_id"])
+        res = run_competitor_research(session, comp_id)
+        return res, ("generate", {"competitor_id": str(comp_id)})
+
+
+@register_handler("generate")
+def handle_generate(
+    payload: dict[str, Any],
+) -> tuple[dict[str, Any], tuple[str, dict[str, Any]] | None]:
+    import uuid
+
+    from compare_pipeline.generation import generate_comparison_draft
+
+    with get_pipeline_session() as session:
+        comp_id = uuid.UUID(payload["competitor_id"])
+        res = generate_comparison_draft(session, comp_id)
+        return res, ("gate", {"article_id": res["article_id"]})
+
+
+@register_handler("gate")
+def handle_gate(
+    payload: dict[str, Any],
+) -> tuple[dict[str, Any], tuple[str, dict[str, Any]] | None]:
+    import uuid
+
+    from compare_pipeline.gate import run_article_gate
+    from compare_pipeline.models import Article, ArticleVersion
+    from compare_pipeline.models_article import ArticleDraft
+
+    with get_pipeline_session() as session:
+        art_id = uuid.UUID(payload["article_id"])
+        article = session.query(Article).filter(Article.id == art_id).one()
+        version = (
+            session.query(ArticleVersion)
+            .filter(ArticleVersion.id == article.current_version_id)
+            .one()
+        )
+        draft = ArticleDraft.model_validate(version.content)
+        report = run_article_gate(
+            draft, session=session, competitor_id=article.competitor_id
+        )
+        version.gate_report = report.to_dict()
+        version.gate_stale = False
+        if report.passed:
+            article.status = "needs_review"
+        else:
+            article.status = "needs_attention"
+        session.commit()
+        return report.to_dict(), None
+
+
+@register_handler("push_webflow")
+def handle_push_webflow(
+    payload: dict[str, Any],
+) -> tuple[dict[str, Any], None]:
+    import uuid
+
+    from compare_pipeline.models import Article, ArticleVersion
+    from compare_pipeline.webflow import WebflowSafeClient
+
+    with get_pipeline_session() as session:
+        art_id = uuid.UUID(payload["article_id"])
+        article = session.query(Article).filter(Article.id == art_id).one()
+        version = (
+            session.query(ArticleVersion)
+            .filter(ArticleVersion.id == article.current_version_id)
+            .one()
+        )
+        client = WebflowSafeClient()
+        fields = {
+            "name": version.content.get("title"),
+            "slug": article.slug,
+            "body": version.webflow_html,
+        }
+        res = client.push_draft_item(client.collection_id or "test_col", fields)
+        article.webflow_item_id = res.get("id")
+        session.commit()
+        return res, None
 
 
 class Worker:

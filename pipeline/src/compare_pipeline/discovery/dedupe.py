@@ -1,8 +1,9 @@
 import re
+
 import tldextract
 from rapidfuzz import fuzz
-from typing import Optional, List, Tuple
 from sqlalchemy.orm import Session
+
 from compare_pipeline.models import Competitor
 
 # Common corporate/entity suffixes to strip during normalization
@@ -32,11 +33,11 @@ def normalize_company_name(name: str) -> str:
 def is_duplicate_competitor(
     candidate_name: str,
     candidate_domain_or_url: str,
-    candidate_aliases: Optional[List[str]] = None,
-    existing_competitors: Optional[List[Competitor]] = None,
-    session: Optional[Session] = None,
+    candidate_aliases: list[str] | None = None,
+    existing_competitors: list[Competitor] | None = None,
+    session: Session | None = None,
     fuzzy_threshold: float = 85.0,
-) -> Tuple[bool, Optional[str], Optional[str]]:
+) -> tuple[bool, str | None, str | None]:
     """
     Evaluates whether a candidate competitor already exists based on:
     1. Exact canonical domain match
@@ -46,7 +47,9 @@ def is_duplicate_competitor(
     """
     candidate_domain = extract_canonical_domain(candidate_domain_or_url)
     norm_candidate_name = normalize_company_name(candidate_name)
-    all_candidate_aliases = [normalize_company_name(a) for a in (candidate_aliases or [])]
+    all_candidate_aliases = [
+        normalize_company_name(a) for a in (candidate_aliases or [])
+    ]
 
     # Load competitors if not provided
     if existing_competitors is None:
@@ -63,7 +66,9 @@ def is_duplicate_competitor(
         norm_comp_name = normalize_company_name(comp.name)
         comp_aliases_norm = [normalize_company_name(a) for a in (comp.aliases or [])]
 
-        if candidate_domain in [extract_canonical_domain(a) for a in (comp.aliases or [])]:
+        if candidate_domain in [
+            extract_canonical_domain(a) for a in (comp.aliases or [])
+        ]:
             return True, comp.name, f"alias_domain_match ({candidate_domain})"
 
         if norm_candidate_name in comp_aliases_norm:
@@ -76,7 +81,10 @@ def is_duplicate_competitor(
         # 3. Fuzzy string matching on normalized names (rapidfuzz token_sort_ratio >= 85)
         score = fuzz.token_sort_ratio(norm_candidate_name, norm_comp_name)
         if score >= fuzzy_threshold:
-            return True, comp.name, f"fuzzy_name_match (score={score:.1f} >= {fuzzy_threshold})"
+            return (
+                True,
+                comp.name,
+                f"fuzzy_name_match (score={score:.1f} >= {fuzzy_threshold})",
+            )
 
     return False, None, None
-

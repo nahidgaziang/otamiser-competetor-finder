@@ -1,11 +1,11 @@
 import pytest
 import respx
-import httpx
+
 from compare_pipeline.http.safe_fetch import (
+    SafeFetchError,
+    SSRFSecurityError,
     safe_fetch,
     validate_target_url,
-    SSRFSecurityError,
-    SafeFetchError,
 )
 
 
@@ -24,7 +24,10 @@ def test_ssrf_prohibited_ips():
     for url in prohibited_urls:
         with pytest.raises(SSRFSecurityError) as exc_info:
             validate_target_url(url)
-        assert "prohibited" in str(exc_info.value).lower() or "scheme" in str(exc_info.value).lower()
+        assert (
+            "prohibited" in str(exc_info.value).lower()
+            or "scheme" in str(exc_info.value).lower()
+        )
 
 
 def test_disallowed_schemes_and_ports():
@@ -84,4 +87,3 @@ def test_safe_fetch_redirect_to_internal_ip_blocked():
 
     with pytest.raises(SSRFSecurityError):
         safe_fetch("https://example.com/redirect", apply_rate_limit=False)
-

@@ -2,7 +2,7 @@ import ipaddress
 import socket
 import time
 import urllib.parse
-from typing import Dict, Optional, Set
+
 import httpx
 
 # Blocked IP networks
@@ -24,22 +24,26 @@ ALLOWED_CONTENT_TYPES = {
 MAX_RESPONSE_BYTES = 5 * 1024 * 1024  # 5 MB
 MAX_REDIRECTS = 5
 
-_domain_last_request: Dict[str, float] = {}
+_domain_last_request: dict[str, float] = {}
 
 
 class SSRFSecurityError(Exception):
     """Raised when a URL attempts to target private, local, or prohibited network resources."""
-    pass
 
 
 class SafeFetchError(Exception):
     """Raised when fetch fails due to size, timeout, or disallowed content type."""
-    pass
 
 
 def is_ip_prohibited(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
     """Checks if an IP address belongs to private, loopback, link-local, multicast or metadata spaces."""
-    if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved:
+    if (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_multicast
+        or ip.is_reserved
+    ):
         return True
     if ip in PROHIBITED_METADATA_IPS:
         return True
@@ -51,7 +55,9 @@ def validate_target_url(url: str) -> urllib.parse.ParseResult:
     parsed = urllib.parse.urlparse(url)
 
     if parsed.scheme.lower() not in ALLOWED_SCHEMES:
-        raise SSRFSecurityError(f"Disallowed URL scheme: '{parsed.scheme}'. Only http and https are permitted.")
+        raise SSRFSecurityError(
+            f"Disallowed URL scheme: '{parsed.scheme}'. Only http and https are permitted."
+        )
 
     hostname = parsed.hostname
     if not hostname:
@@ -59,15 +65,19 @@ def validate_target_url(url: str) -> urllib.parse.ParseResult:
 
     port = parsed.port or (443 if parsed.scheme.lower() == "https" else 80)
     if port not in ALLOWED_PORTS:
-        raise SSRFSecurityError(f"Disallowed port: {port}. Only ports 80 and 443 are allowed.")
+        raise SSRFSecurityError(
+            f"Disallowed port: {port}. Only ports 80 and 443 are allowed."
+        )
 
     # DNS Resolution check
     try:
         addr_info = socket.getaddrinfo(hostname, port, proto=socket.IPPROTO_TCP)
     except socket.gaierror as e:
-        raise SafeFetchError(f"DNS resolution failed for hostname '{hostname}': {e}") from e
+        raise SafeFetchError(
+            f"DNS resolution failed for hostname '{hostname}': {e}"
+        ) from e
 
-    resolved_ips: Set[str] = set()
+    resolved_ips: set[str] = set()
     for item in addr_info:
         sockaddr = item[4]
         ip_str = sockaddr[0]
@@ -94,7 +104,7 @@ def enforce_domain_rate_limit(domain: str, min_delay_sec: float = 1.0) -> None:
 def safe_fetch(
     url: str,
     timeout_sec: float = 15.0,
-    headers: Optional[Dict[str, str]] = None,
+    headers: dict[str, str] | None = None,
     verify_ssl: bool = True,
     apply_rate_limit: bool = True,
 ) -> httpx.Response:
@@ -132,7 +142,9 @@ def safe_fetch(
                     if response.is_redirect:
                         redirect_count += 1
                         if redirect_count > MAX_REDIRECTS:
-                            raise SafeFetchError(f"Exceeded maximum redirects ({MAX_REDIRECTS})")
+                            raise SafeFetchError(
+                                f"Exceeded maximum redirects ({MAX_REDIRECTS})"
+                            )
                         loc = response.headers.get("Location")
                         if not loc:
                             raise SafeFetchError("Redirect missing Location header")
@@ -143,16 +155,25 @@ def safe_fetch(
                     response.raise_for_status()
 
                     # Validate content-type
-                    content_type = response.headers.get("Content-Type", "").split(";")[0].strip().lower()
+                    content_type = (
+                        response.headers.get("Content-Type", "")
+                        .split(";")[0]
+                        .strip()
+                        .lower()
+                    )
                     if content_type and content_type not in ALLOWED_CONTENT_TYPES:
-                        raise SafeFetchError(f"Disallowed content-type: '{content_type}'")
+                        raise SafeFetchError(
+                            f"Disallowed content-type: '{content_type}'"
+                        )
 
                     # Read body with 5 MB cap
                     body_bytes = bytearray()
                     for chunk in response.iter_bytes():
                         body_bytes.extend(chunk)
                         if len(body_bytes) > MAX_RESPONSE_BYTES:
-                            raise SafeFetchError(f"Response size exceeded {MAX_RESPONSE_BYTES} bytes limit")
+                            raise SafeFetchError(
+                                f"Response size exceeded {MAX_RESPONSE_BYTES} bytes limit"
+                            )
 
                     # Copy headers and remove content-encoding since body_bytes is already decoded
                     cleaned_headers = dict(response.headers)
@@ -169,4 +190,6 @@ def safe_fetch(
                     return built_response
 
             except httpx.HTTPError as e:
-                raise SafeFetchError(f"HTTP request failed for {current_url}: {e}") from e
+                raise SafeFetchError(
+                    f"HTTP request failed for {current_url}: {e}"
+                ) from e

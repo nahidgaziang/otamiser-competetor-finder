@@ -1,0 +1,180 @@
+---
+import { queryHub } from '../../lib/db';
+
+const { slug } = Astro.params;
+
+let article: any = null;
+try {
+  // Query published view or fallback to current version
+  const res = await queryHub(`
+    SELECT a.slug, c.name as competitor_name, c.canonical_domain, v.content, v.webflow_html
+    FROM app.articles a
+    JOIN app.competitors c ON a.competitor_id = c.id
+    LEFT JOIN app.article_versions v ON a.current_version_id = v.id
+    WHERE a.slug = $1
+    LIMIT 1
+  `, [slug]);
+
+  if (res.rows.length > 0) {
+    article = res.rows[0];
+  }
+} catch (err) {
+  console.error("Error fetching article slug:", err);
+}
+
+if (!article) {
+  return Astro.redirect('/compare');
+}
+
+const content = article.content || {};
+const title = content.title || `Otamiser vs ${article.competitor_name}`;
+const metaDesc = content.meta_description || `Comparison between Otamiser and ${article.competitor_name}.`;
+---
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="description" content={metaDesc} />
+    <title>{title}</title>
+    <style>
+      :root {
+        --bg: #ffffff;
+        --text: #1e293b;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --accent: #2563eb;
+        --accent-light: #eff6ff;
+        --card: #f8fafc;
+      }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        color: var(--text);
+        background: var(--bg);
+        line-height: 1.6;
+      }
+      .container { max-width: 860px; margin: 0 auto; padding: 2.5rem 1.25rem; }
+      header { margin-bottom: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: 1.5rem; }
+      h1 { font-size: 2.25rem; line-height: 1.25; margin-bottom: 0.75rem; color: #0f172a; }
+      .meta { color: var(--muted); font-size: 0.95rem; }
+      h2 { font-size: 1.6rem; margin-top: 2.5rem; margin-bottom: 1rem; color: #0f172a; border-bottom: 2px solid var(--accent-light); padding-bottom: 0.4rem; }
+      h3 { font-size: 1.25rem; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+      p { margin-bottom: 1.25rem; }
+      .table-container { overflow-x: auto; margin: 2.5rem 0; }
+      table { width: 100%; border-collapse: collapse; text-align: left; }
+      th, td { padding: 0.85rem 1rem; border: 1px solid var(--border); }
+      th { background: #f1f5f9; font-weight: 600; }
+      .section-row th { background: #e2e8f0; font-size: 1rem; }
+      .check { color: #16a34a; font-weight: bold; font-size: 1.2rem; }
+      .cross { color: #dc2626; font-weight: bold; font-size: 1.1rem; }
+      .partial { color: #ea580c; font-weight: 600; font-size: 0.9rem; }
+      .faq-item { margin-bottom: 1.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 1.25rem; }
+      .cta-box { background: var(--accent-light); border: 1px solid #bfdbfe; border-radius: 8px; padding: 2rem; text-align: center; margin-top: 3.5rem; }
+      .cta-button { display: inline-block; background: var(--accent); color: white; padding: 0.75rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: 600; margin-top: 1rem; }
+    </style>
+  </head>
+  <body>
+    <article class="container">
+      <header>
+        <a href="/compare" style="color: var(--accent); text-decoration: none; font-size: 0.9rem;">&larr; Back to all comparisons</a>
+        <h1>{title}</h1>
+        <div class="meta">Verified factual analysis • Competitor: {article.competitor_name} ({article.canonical_domain})</div>
+      </header>
+
+      <!-- Intro -->
+      {content.intro && content.intro.map((p: any) => (
+        <p>{p.runs ? p.runs.map((r: any) => r.text).join('') : p}</p>
+      ))}
+
+      <!-- Overviews -->
+      <h2>What {article.competitor_name} Does</h2>
+      {content.competitor_overview && content.competitor_overview.map((p: any) => (
+        <p>{p.runs ? p.runs.map((r: any) => r.text).join('') : p}</p>
+      ))}
+
+      <h2>What Otamiser Does</h2>
+      {content.baseline_overview && content.baseline_overview.map((p: any) => (
+        <p>{p.runs ? p.runs.map((r: any) => r.text).join('') : p}</p>
+      ))}
+
+      <!-- Differences -->
+      <h2>Key Operational Differences</h2>
+      {content.differences && content.differences.map((diff: any) => (
+        <div>
+          <h3>{diff.title}</h3>
+          {diff.paragraphs && diff.paragraphs.map((p: any) => (
+            <p>{p.runs ? p.runs.map((r: any) => r.text).join('') : p}</p>
+          ))}
+        </div>
+      ))}
+
+      <!-- Comparison Table -->
+      {content.comparison_table && (
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Feature Comparison</th>
+                <th>{article.competitor_name}</th>
+                <th>Otamiser</th>
+              </tr>
+            </thead>
+            <tbody>
+              {content.comparison_table.map((cat: any) => (
+                <>
+                  <tr class="section-row">
+                    <th colspan="3">{cat.category_name}</th>
+                  </tr>
+                  {cat.rows && cat.rows.map((row: any) => (
+                    <tr>
+                      <td>{row.feature_name}</td>
+                      <td>
+                        {row.competitor_cell.state === 'yes' && <span class="check" title="Supported">✓</span>}
+                        {row.competitor_cell.state === 'no' && <span class="cross" title="Not supported">✕</span>}
+                        {row.competitor_cell.state === 'partial' && <span class="partial">{row.competitor_cell.text_content || 'Partial'}</span>}
+                        {row.competitor_cell.state === 'text' && <span>{row.competitor_cell.text_content}</span>}
+                      </td>
+                      <td>
+                        {row.baseline_cell.state === 'yes' && <span class="check" title="Included">✓</span>}
+                        {row.baseline_cell.state === 'no' && <span class="cross" title="Not supported">✕</span>}
+                        {row.baseline_cell.state === 'partial' && <span class="partial">{row.baseline_cell.text_content || 'Partial'}</span>}
+                        {row.baseline_cell.state === 'text' && <span>{row.baseline_cell.text_content}</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <!-- FAQs -->
+      {content.faqs && (
+        <div>
+          <h2>Frequently Asked Questions</h2>
+          {content.faqs.map((faq: any) => (
+            <div class="faq-item">
+              <h3>{faq.question}</h3>
+              {faq.answer && faq.answer.map((p: any) => (
+                <p>{p.runs ? p.runs.map((r: any) => r.text).join('') : p}</p>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <!-- CTA -->
+      <div class="cta-box">
+        <h2>{content.cta_heading || 'Automate Your OTA Revenue Management'}</h2>
+        <p>{content.cta_description || 'Connect daily search ranking tracking with automated dynamic pricing.'}</p>
+        <a href={content.cta_button_url || 'https://www.otamiser.com'} class="cta-button" target="_blank" rel="noopener noreferrer">
+          {content.cta_button_text || 'Schedule Free Demo'}
+        </a>
+      </div>
+    </article>
+  </body>
+</html>

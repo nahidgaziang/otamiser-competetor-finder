@@ -1,19 +1,27 @@
 import logging
-import uuid
-import yaml
 import re
+import uuid
 from pathlib import Path
-from typing import Dict, Any, List, Set
+from typing import Any
+
+import yaml
 from bs4 import BeautifulSoup
-from compare_pipeline.search import SearchClient
-from compare_pipeline.http.safe_fetch import safe_fetch, SafeFetchError, SSRFSecurityError
-from compare_pipeline.discovery.dedupe import extract_canonical_domain, is_duplicate_competitor
+
 from compare_pipeline.db import get_pipeline_session
+from compare_pipeline.discovery.dedupe import (
+    is_duplicate_competitor,
+)
+from compare_pipeline.http.safe_fetch import (
+    SafeFetchError,
+    SSRFSecurityError,
+    safe_fetch,
+)
 from compare_pipeline.models import Competitor, DiscoveryHit
+from compare_pipeline.search import SearchClient
 
 logger = logging.getLogger("discovery")
 
-_PROTOTYPE_ROOT = Path(__file__).resolve().parents[4]
+_PROTOTYPE_ROOT = Path(__file__).resolve().parents[3]
 QUERIES_FILE = _PROTOTYPE_ROOT / "style" / "queries.yaml"
 
 RELEVANCE_KEYWORDS = re.compile(
@@ -22,7 +30,7 @@ RELEVANCE_KEYWORDS = re.compile(
 )
 
 
-def load_query_config() -> tuple[Dict[str, List[str]], Set[str]]:
+def load_query_config() -> tuple[dict[str, list[str]], set[str]]:
     """Loads query clusters and blocklist domains from style/queries.yaml."""
     if not QUERIES_FILE.exists():
         logger.warning("Queries config %s not found, using defaults", QUERIES_FILE)
@@ -68,7 +76,7 @@ def extract_homepage_evidence(html: str) -> tuple[str, str, float]:
     return title, evidence_quote, score
 
 
-def run_discovery(max_candidates: int = 5) -> Dict[str, Any]:
+def run_discovery(max_candidates: int = 5) -> dict[str, Any]:
     """
     Executes automated competitor discovery:
     1. Runs search queries from query clusters.
@@ -81,7 +89,7 @@ def run_discovery(max_candidates: int = 5) -> Dict[str, Any]:
     search_client = SearchClient()
 
     total_hits = 0
-    candidate_urls: Dict[str, Dict[str, Any]] = {}
+    candidate_urls: dict[str, dict[str, Any]] = {}
 
     with get_pipeline_session() as session:
         # Load existing competitors for deduplication
@@ -110,7 +118,9 @@ def run_discovery(max_candidates: int = 5) -> Dict[str, Any]:
                     total_hits += 1
 
                     # Skip blocklisted domains
-                    if domain in blocklist or any(domain.endswith("." + b) for b in blocklist):
+                    if domain in blocklist or any(
+                        domain.endswith("." + b) for b in blocklist
+                    ):
                         continue
 
                     # Deduplicate
@@ -127,7 +137,10 @@ def run_discovery(max_candidates: int = 5) -> Dict[str, Any]:
                             "snippet": r["snippet"],
                         }
 
-        logger.info("Identified %d unique potential candidates after deduplication", len(candidate_urls))
+        logger.info(
+            "Identified %d unique potential candidates after deduplication",
+            len(candidate_urls),
+        )
 
         # Inspect and classify candidates
         created_candidates = []
@@ -156,15 +169,21 @@ def run_discovery(max_candidates: int = 5) -> Dict[str, Any]:
                     type="direct",
                 )
                 session.add(new_comp)
-                created_candidates.append({
-                    "name": name_clean,
-                    "domain": domain,
-                    "relevance_score": score,
-                    "evidence_quote": quote[:100] + "..." if len(quote) > 100 else quote,
-                })
+                created_candidates.append(
+                    {
+                        "name": name_clean,
+                        "domain": domain,
+                        "relevance_score": score,
+                        "evidence_quote": quote[:100] + "..."
+                        if len(quote) > 100
+                        else quote,
+                    }
+                )
                 logger.info("Added candidate competitor: %s (%s)", name_clean, domain)
             except (SafeFetchError, SSRFSecurityError, Exception) as e:
-                logger.warning("Could not safely inspect candidate %s: %s", target_url, e)
+                logger.warning(
+                    "Could not safely inspect candidate %s: %s", target_url, e
+                )
 
         session.commit()
 

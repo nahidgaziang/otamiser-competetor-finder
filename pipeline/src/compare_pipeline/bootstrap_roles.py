@@ -1,5 +1,7 @@
 import urllib.parse
+
 import psycopg
+
 from compare_pipeline.config import settings
 
 
@@ -11,8 +13,12 @@ def parse_role_credentials(url: str):
 def bootstrap_roles():
     """Connects as superuser and provisions migrator, pipeline_rw, and web_app roles."""
     admin_user, admin_pass, db_name = parse_role_credentials(settings.DATABASE_URL)
-    migrator_user, migrator_pass, _ = parse_role_credentials(settings.DATABASE_URL_MIGRATOR)
-    pipeline_user, pipeline_pass, _ = parse_role_credentials(settings.DATABASE_URL_PIPELINE)
+    migrator_user, migrator_pass, _ = parse_role_credentials(
+        settings.DATABASE_URL_MIGRATOR
+    )
+    pipeline_user, pipeline_pass, _ = parse_role_credentials(
+        settings.DATABASE_URL_PIPELINE
+    )
     web_user, web_pass, _ = parse_role_credentials(settings.DATABASE_URL_WEB)
 
     print(f"Connecting to database '{db_name}' as superuser '{admin_user}'...")
@@ -27,26 +33,20 @@ def bootstrap_roles():
             cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (role_name,))
             if not cur.fetchone():
                 print(f"Creating role '{role_name}'...")
-                query = psycopg.sql.SQL(
-                    "CREATE ROLE {} WITH LOGIN PASSWORD {}"
-                ).format(
+                query = psycopg.sql.SQL("CREATE ROLE {} WITH LOGIN PASSWORD {}").format(
                     psycopg.sql.Identifier(role_name),
                     psycopg.sql.Literal(role_pass),
                 )
                 cur.execute(query)
             else:
                 print(f"Updating password for role '{role_name}'...")
-                query = psycopg.sql.SQL(
-                    "ALTER ROLE {} WITH LOGIN PASSWORD {}"
-                ).format(
+                query = psycopg.sql.SQL("ALTER ROLE {} WITH LOGIN PASSWORD {}").format(
                     psycopg.sql.Identifier(role_name),
                     psycopg.sql.Literal(role_pass),
                 )
                 cur.execute(query)
 
-            grant_query = psycopg.sql.SQL(
-                "GRANT CONNECT ON DATABASE {} TO {}"
-            ).format(
+            grant_query = psycopg.sql.SQL("GRANT CONNECT ON DATABASE {} TO {}").format(
                 psycopg.sql.Identifier(db_name),
                 psycopg.sql.Identifier(role_name),
             )

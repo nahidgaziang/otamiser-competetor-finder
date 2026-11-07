@@ -1,0 +1,382 @@
+{
+  "$defs": {
+    "DifferenceSection": {
+      "properties": {
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "paragraphs": {
+          "items": {
+            "$ref": "#/$defs/SourcedParagraph"
+          },
+          "title": "Paragraphs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "title",
+        "paragraphs"
+      ],
+      "title": "DifferenceSection",
+      "type": "object"
+    },
+    "FAQItem": {
+      "properties": {
+        "question": {
+          "title": "Question",
+          "type": "string"
+        },
+        "answer": {
+          "items": {
+            "$ref": "#/$defs/SourcedParagraph"
+          },
+          "title": "Answer",
+          "type": "array"
+        }
+      },
+      "required": [
+        "question",
+        "answer"
+      ],
+      "title": "FAQItem",
+      "type": "object"
+    },
+    "FeatureCell": {
+      "properties": {
+        "state": {
+          "enum": [
+            "yes",
+            "no",
+            "partial",
+            "text"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "text_content": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text Content"
+        },
+        "claim_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Claim Id"
+        },
+        "fact_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fact Id"
+        },
+        "quote": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quote"
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "title": "FeatureCell",
+      "type": "object"
+    },
+    "FeatureRow": {
+      "properties": {
+        "feature_name": {
+          "title": "Feature Name",
+          "type": "string"
+        },
+        "competitor_cell": {
+          "$ref": "#/$defs/FeatureCell"
+        },
+        "baseline_cell": {
+          "$ref": "#/$defs/FeatureCell"
+        }
+      },
+      "required": [
+        "feature_name",
+        "competitor_cell",
+        "baseline_cell"
+      ],
+      "title": "FeatureRow",
+      "type": "object"
+    },
+    "SourcedParagraph": {
+      "properties": {
+        "runs": {
+          "items": {
+            "$ref": "#/$defs/TextRun"
+          },
+          "title": "Runs",
+          "type": "array"
+        },
+        "claim_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Claim Id"
+        },
+        "fact_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fact Id"
+        }
+      },
+      "required": [
+        "runs"
+      ],
+      "title": "SourcedParagraph",
+      "type": "object"
+    },
+    "TableCategory": {
+      "properties": {
+        "category_name": {
+          "title": "Category Name",
+          "type": "string"
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/FeatureRow"
+          },
+          "minItems": 2,
+          "title": "Rows",
+          "type": "array"
+        }
+      },
+      "required": [
+        "category_name",
+        "rows"
+      ],
+      "title": "TableCategory",
+      "type": "object"
+    },
+    "TextRun": {
+      "properties": {
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "bold": {
+          "default": false,
+          "title": "Bold",
+          "type": "boolean"
+        },
+        "href": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Href"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "TextRun",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "title": {
+      "description": "SEO Title under 60 characters",
+      "maxLength": 60,
+      "title": "Title",
+      "type": "string"
+    },
+    "meta_description": {
+      "description": "Meta description 120-160 characters",
+      "maxLength": 160,
+      "minLength": 120,
+      "title": "Meta Description",
+      "type": "string"
+    },
+    "slug": {
+      "title": "Slug",
+      "type": "string"
+    },
+    "competitor_name": {
+      "title": "Competitor Name",
+      "type": "string"
+    },
+    "competitor_domain": {
+      "title": "Competitor Domain",
+      "type": "string"
+    },
+    "intro": {
+      "items": {
+        "$ref": "#/$defs/SourcedParagraph"
+      },
+      "maxItems": 3,
+      "minItems": 1,
+      "title": "Intro",
+      "type": "array"
+    },
+    "competitor_overview": {
+      "items": {
+        "$ref": "#/$defs/SourcedParagraph"
+      },
+      "title": "Competitor Overview",
+      "type": "array"
+    },
+    "baseline_overview": {
+      "items": {
+        "$ref": "#/$defs/SourcedParagraph"
+      },
+      "title": "Baseline Overview",
+      "type": "array"
+    },
+    "differences": {
+      "items": {
+        "$ref": "#/$defs/DifferenceSection"
+      },
+      "maxItems": 5,
+      "minItems": 2,
+      "title": "Differences",
+      "type": "array"
+    },
+    "comparison_table": {
+      "items": {
+        "$ref": "#/$defs/TableCategory"
+      },
+      "minItems": 3,
+      "title": "Comparison Table",
+      "type": "array"
+    },
+    "who_is_it_for": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/SourcedParagraph"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Who Is It For"
+    },
+    "pricing_analysis": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/SourcedParagraph"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Pricing Analysis"
+    },
+    "results_impact": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/SourcedParagraph"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Results Impact"
+    },
+    "faqs": {
+      "items": {
+        "$ref": "#/$defs/FAQItem"
+      },
+      "maxItems": 6,
+      "minItems": 4,
+      "title": "Faqs",
+      "type": "array"
+    },
+    "cta_heading": {
+      "title": "Cta Heading",
+      "type": "string"
+    },
+    "cta_description": {
+      "title": "Cta Description",
+      "type": "string"
+    },
+    "cta_button_text": {
+      "title": "Cta Button Text",
+      "type": "string"
+    },
+    "cta_button_url": {
+      "title": "Cta Button Url",
+      "type": "string"
+    }
+  },
+  "required": [
+    "title",
+    "meta_description",
+    "slug",
+    "competitor_name",
+    "competitor_domain",
+    "intro",
+    "competitor_overview",
+    "baseline_overview",
+    "differences",
+    "comparison_table",
+    "faqs",
+    "cta_heading",
+    "cta_description",
+    "cta_button_text",
+    "cta_button_url"
+  ],
+  "title": "ArticleDraft",
+  "type": "object"
+}

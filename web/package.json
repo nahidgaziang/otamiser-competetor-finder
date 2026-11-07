@@ -13,6 +13,10 @@
   },
   "dependencies": {
     "@astrojs/node": "^11.1.11",
-    "astro": "^7.4.7"
+    "astro": "^7.4.7",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1"
   }
 }

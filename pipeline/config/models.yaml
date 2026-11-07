@@ -1,0 +1,13 @@
+default_model: "claude-haiku-5-5"
+cap_usd: 5.00
+max_prompt_tokens: 90000
+
+models:
+  claude-haiku-5-5:
+    provider: "anthropic"
+    prompt_price_per_million: 1.00
+    completion_price_per_million: 5.00
+  claude-sonnet-5-5:
+    provider: "anthropic"
+    prompt_price_per_million: 3.00
+    completion_price_per_million: 15.00

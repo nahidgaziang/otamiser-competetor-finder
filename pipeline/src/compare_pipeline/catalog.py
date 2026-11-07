@@ -2,18 +2,19 @@ import logging
 import re
 import uuid
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import Any
+
 from bs4 import BeautifulSoup
-from sqlalchemy import text
-from compare_pipeline.http.safe_fetch import safe_fetch
-from compare_pipeline.discovery.dedupe import extract_canonical_domain
+
 from compare_pipeline.db import get_pipeline_session
-from compare_pipeline.models import Competitor, Article
+from compare_pipeline.discovery.dedupe import extract_canonical_domain
+from compare_pipeline.http.safe_fetch import safe_fetch
+from compare_pipeline.models import Article, Competitor
 
 logger = logging.getLogger("catalog")
 
 # Root directory of style references
-_PROTOTYPE_ROOT = Path(__file__).resolve().parents[4]
+_PROTOTYPE_ROOT = Path(__file__).resolve().parents[3]
 REFERENCES_DIR = _PROTOTYPE_ROOT / "style" / "references"
 
 REFERENCE_SLUGS = {
@@ -40,7 +41,7 @@ def clean_competitor_name(raw_title: str, slug: str) -> str:
     return raw_title.strip()
 
 
-def seed_catalog() -> Dict[str, Any]:
+def seed_catalog() -> dict[str, Any]:
     """
     Fetches https://www.otamiser.com/compare through safe_fetch,
     extracts all 41 comparison pages, populates competitors and articles in DB,
@@ -51,14 +52,16 @@ def seed_catalog() -> Dict[str, Any]:
     soup = BeautifulSoup(res.text, "html.parser")
 
     all_links = soup.find_all("a", href=re.compile(r"^/compare/"))
-    unique_entries: Dict[str, str] = {}
+    unique_entries: dict[str, str] = {}
     for a in all_links:
         href = a.get("href", "").strip().rstrip("/")
         title = a.get_text(strip=True)
         if href and href not in unique_entries and href != "/compare":
             unique_entries[href] = title
 
-    logger.info("Discovered %d unique comparison pages on Otamiser hub", len(unique_entries))
+    logger.info(
+        "Discovered %d unique comparison pages on Otamiser hub", len(unique_entries)
+    )
 
     REFERENCES_DIR.mkdir(parents=True, exist_ok=True)
     seeded_count = 0
@@ -84,7 +87,11 @@ def seed_catalog() -> Dict[str, Any]:
 
             # Check if competitor exists by canonical domain
             canon_domain = extract_canonical_domain(domain)
-            comp = session.query(Competitor).filter(Competitor.canonical_domain == canon_domain).first()
+            comp = (
+                session.query(Competitor)
+                .filter(Competitor.canonical_domain == canon_domain)
+                .first()
+            )
             if not comp:
                 comp = Competitor(
                     id=uuid.uuid4(),
@@ -119,16 +126,28 @@ def seed_catalog() -> Dict[str, Any]:
             if slug in REFERENCE_SLUGS:
                 ref_filename = REFERENCE_SLUGS[slug]
                 ref_path = REFERENCES_DIR / ref_filename
-                logger.info("Extracting style reference article for %s -> %s", slug, ref_filename)
+                logger.info(
+                    "Extracting style reference article for %s -> %s",
+                    slug,
+                    ref_filename,
+                )
                 try:
                     ref_res = safe_fetch(f"https://www.otamiser.com{path}")
                     ref_soup = BeautifulSoup(ref_res.text, "html.parser")
                     # Extract main article body text
-                    main_elem = ref_soup.find("main") or ref_soup.find("article") or ref_soup.body
+                    main_elem = (
+                        ref_soup.find("main")
+                        or ref_soup.find("article")
+                        or ref_soup.body
+                    )
                     if main_elem:
                         ref_text = main_elem.get_text(separator="\n", strip=True)
                         ref_path.write_text(ref_text, encoding="utf-8")
-                        logger.info("Saved reference article (%d chars) to %s", len(ref_text), ref_path)
+                        logger.info(
+                            "Saved reference article (%d chars) to %s",
+                            len(ref_text),
+                            ref_path,
+                        )
                 except Exception as e:
                     logger.warning("Could not fetch reference %s: %s", slug, e)
 
@@ -137,4 +156,3 @@ def seed_catalog() -> Dict[str, Any]:
         "seeded_competitors": seeded_count,
         "listicles_count": listicles_count,
     }
-

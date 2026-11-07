@@ -1,0 +1,40 @@
+# Brand Knowledge & Comparison Guidelines
+brand:
+  name: "Otamiser"
+  domain: "otamiser.com"
+  category: "Hotel & Vacation Rental Revenue Management"
+  facts:
+    - id: "fact-ota-ranking"
+      claim: "Daily automated search ranking tracking across Airbnb, Booking.com, Vrbo, and Expedia"
+      status: "public"
+    - id: "fact-dynamic-pricing"
+      claim: "Dynamic pricing algorithmically calibrated to live search visibility position"
+      status: "public"
+    - id: "fact-managed-deals"
+      claim: "Complete management of Booking.com Genius, Preferred Partner, and limited-time deals"
+      status: "public"
+    - id: "fact-auto-diagnosis"
+      claim: "Continuous automated diagnosis of ranking drops with immediate algorithmic rate action"
+      status: "public"
+    - id: "fact-done-for-you"
+      claim: "Full done-for-you operation managed by dedicated revenue specialists and automated algorithms"
+      status: "public"
+
+cta:
+  heading: "Ready to automate your OTA revenue?"
+  description: "See how Otamiser combines daily search ranking tracking with automated dynamic pricing to increase RevPAR."
+  button_text: "Schedule Free Demo"
+  button_url: "https://www.otamiser.com/book-demo"
+
+style_rules:
+  min_words: 900
+  max_words: 1600
+  title_max_length: 60
+  meta_min_length: 120
+  meta_max_length: 160
+  banned_words:
+    - "revolutionary"
+    - "game-changer"
+    - "miracle"
+    - "unmatched"
+    - "best in the world"

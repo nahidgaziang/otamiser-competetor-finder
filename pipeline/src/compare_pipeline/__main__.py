@@ -88,9 +88,14 @@ def main():
 
         export_schema()
     elif args.command == "validate":
-        print(f"Running validation check for {args.goal}...")
+        from compare_pipeline.validation import run_validations
+
+        res = run_validations()
+        print(f"Validation metrics computed: {res}")
     elif args.command == "report":
-        print("Building reports/validation-report.md...")
+        from compare_pipeline.validation import generate_validation_report
+
+        generate_validation_report()
 
 
 if __name__ == "__main__":
