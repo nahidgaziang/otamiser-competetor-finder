@@ -1,0 +1,123 @@
+[
+  {
+    "input_name": "Pricepoint",
+    "input_url": "https://pricepoint.co",
+    "target_name": "Pricepoint",
+    "target_domain": "pricepoint.co",
+    "match_type": "exact_domain",
+    "expected_duplicate": true
+  },
+  {
+    "input_name": "Pricepoint",
+    "input_url": "https://www.pricepoint.co/",
+    "target_name": "Pricepoint",
+    "target_domain": "pricepoint.co",
+    "match_type": "www_trailing_slash",
+    "expected_duplicate": true
+  },
+  {
+    "input_name": "Pricepoint",
+    "input_url": "http://pricepoint.co/pricing?ref=google",
+    "target_name": "Pricepoint",
+    "target_domain": "pricepoint.co",
+    "match_type": "protocol_query_params",
+    "expected_duplicate": true
+  },
+  {
+    "input_name": "Pricepoint Inc.",
+    "input_url": "https://pricepoint.co",
+    "target_name": "Pricepoint",
+    "target_domain": "pricepoint.co",
+    "match_type": "corporate_suffix",
+    "expected_duplicate": true
+  },
+  {
+    "input_name": "Beyond",
+    "input_url": "https://beyondpricing.com",
+    "target_name": "Beyond Pricing",
+    "target_domain": "beyondpricing.com",
+    "match_type": "alias_name",
+    "expected_duplicate": true
+  },
+  {
+    "input_name": "Beyond",
+    "input_url": "https://www.beyond.com",
+    "target_name": "Beyond Pricing",
+    "target_domain": "beyondpricing.com",
+    "match_type": "alias_domain",
+    "expected_duplicate": true
+  },
+  {
+    "input_name": "UseWheelhouse",
+    "input_url": "https://usewheelhouse.com",
+    "target_name": "Wheelhouse",
+    "target_domain": "usewheelhouse.com",
+    "match_type": "brand_prefix",
+    "expected_duplicate": true
+  },
+  {
+    "input_name": "Wheelhouse Software",
+    "input_url": "https://usewheelhouse.com/features",
+    "target_name": "Wheelhouse",
+    "target_domain": "usewheelhouse.com",
+    "match_type": "domain_plus_path",
+    "expected_duplicate": true
+  },
+  {
+    "input_name": "Rank Breeze",
+    "input_url": "https://rankbreeze.com",
+    "target_name": "Rankbreeze",
+    "target_domain": "rankbreeze.com",
+    "match_type": "space_fuzz_match",
+    "expected_duplicate": true
+  },
+  {
+    "input_name": "AirDNA LLC",
+    "input_url": "https://www.airdna.co",
+    "target_name": "AirDNA",
+    "target_domain": "airdna.co",
+    "match_type": "corporate_llc",
+    "expected_duplicate": true
+  },
+  {
+    "input_name": "Hostaway PMS",
+    "input_url": "https://hostaway.com",
+    "target_name": "Hostaway",
+    "target_domain": "hostaway.com",
+    "match_type": "category_suffix",
+    "expected_duplicate": true
+  },
+  {
+    "input_name": "Guesty for Hosts",
+    "input_url": "https://hosts.guesty.com",
+    "target_name": "Guesty",
+    "target_domain": "guesty.com",
+    "match_type": "subdomain_registrable",
+    "expected_duplicate": true
+  },
+  {
+    "input_name": "PriceLabs App",
+    "input_url": "https://app.pricelabs.co/home",
+    "target_name": "PriceLabs",
+    "target_domain": "pricelabs.co",
+    "match_type": "app_subdomain",
+    "expected_duplicate": true
+  },
+  {
+    "input_name": "Revolvio Technologies",
+    "input_url": "https://revolvio.com",
+    "target_name": "Revolvio",
+    "target_domain": "revolvio.com",
+    "match_type": "fuzz_and_domain",
+    "expected_duplicate": true
+  },
+  {
+    "input_name": "Lighthouse",
+    "input_url": "https://mylighthouse.com",
+    "target_name": "OTA Insight",
+    "target_domain": "otainsight.com",
+    "match_type": "rebrand_alias",
+    "expected_duplicate": true
+  }
+]
+

@@ -1,0 +1,23 @@
+[
+  "http://127.0.0.1:80",
+  "http://127.0.0.1:5432",
+  "http://localhost:4321",
+  "http://169.254.169.254/latest/meta-data/",
+  "http://169.254.169.254/computeMetadata/v1/",
+  "http://10.0.0.1",
+  "http://10.255.255.254",
+  "http://172.16.0.1",
+  "http://172.17.0.1",
+  "http://172.31.255.255",
+  "http://192.168.0.1",
+  "http://192.168.1.254",
+  "http://[::1]:80",
+  "http://[fd00:ec2::254]:80",
+  "ftp://example.com/file",
+  "file:///etc/shadow",
+  "gopher://127.0.0.1:70",
+  "dict://127.0.0.1:2628",
+  "http://example.com:22",
+  "http://example.com:3306"
+]
+
