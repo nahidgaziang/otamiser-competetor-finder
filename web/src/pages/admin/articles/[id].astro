@@ -1,0 +1,261 @@
+---
+import { queryAdmin } from '../../../lib/db';
+
+const { id } = Astro.params;
+
+let article: any = null;
+let currentVersion: any = null;
+let error = "";
+let success = "";
+
+if (Astro.request.method === "POST") {
+  try {
+    const formData = await Astro.request.formData();
+    const action = formData.get("action")?.toString();
+
+    if (action === "publish") {
+      const confirmText = formData.get("confirm_text")?.toString();
+      if (confirmText !== "PUBLISH") {
+        error = "Type 'PUBLISH' in capital letters to confirm publication.";
+      } else {
+        await queryAdmin(`
+          UPDATE app.articles
+          SET status = 'published',
+              hub_published_at = now(),
+              hub_published_by = 'human_admin',
+              updated_at = now()
+          WHERE id = $1;
+        `, [id]);
+
+        await queryAdmin(`
+          INSERT INTO app.admin_audit_log (action, entity_type, entity_id, actor, details)
+          VALUES ('publish_article', 'article', $1, 'human_admin', '{"channel": "hub"}'::jsonb);
+        `, [id]);
+
+        success = "Article published to local comparison hub successfully.";
+      }
+    } else if (action === "unpublish") {
+      await queryAdmin(`
+        UPDATE app.articles
+        SET status = 'draft',
+            hub_published_at = NULL,
+            hub_published_by = NULL,
+            updated_at = now()
+        WHERE id = $1;
+      `, [id]);
+
+      await queryAdmin(`
+        INSERT INTO app.admin_audit_log (action, entity_type, entity_id, actor, details)
+        VALUES ('unpublish_article', 'article', $1, 'human_admin', '{"channel": "hub"}'::jsonb);
+      `, [id]);
+
+      success = "Article unpublished and reverted to draft.";
+    } else if (action === "push_webflow") {
+      await queryAdmin(`
+        SELECT app.request_job('push_webflow', jsonb_build_object('article_id', $1::text), 'admin_ui');
+      `, [id]);
+      success = "Queued push_webflow job for test site.";
+    }
+  } catch (e: any) {
+    error = e.message;
+  }
+}
+
+try {
+  const res = await queryAdmin(`
+    SELECT 
+      a.id, a.slug, a.status, a.hub_published_at, a.hub_published_by, a.webflow_item_id,
+      c.id as competitor_id, c.name as competitor_name, c.canonical_domain,
+      v.id as version_id, v.version_number, v.content, v.webflow_html, v.gate_report, v.created_at as version_created_at
+    FROM app.articles a
+    JOIN app.competitors c ON a.competitor_id = c.id
+    LEFT JOIN app.article_versions v ON a.current_version_id = v.id
+    WHERE a.id = $1
+    LIMIT 1;
+  `, [id]);
+
+  if (res.rows.length > 0) {
+    article = res.rows[0];
+    currentVersion = article;
+  }
+} catch (e) {
+  console.error("Article fetch error:", e);
+}
+
+if (!article) {
+  return Astro.redirect('/admin/articles');
+}
+
+const gateReport = currentVersion?.gate_report || { all_passed: false, checks: {} };
+---
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Review: Otamiser vs {article.competitor_name}</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --card: #1e293b;
+        --text: #f8fafc;
+        --muted: #94a3b8;
+        --accent: #3b82f6;
+        --border: #334155;
+        --green: #22c55e;
+        --red: #ef4444;
+      }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+        min-height: 100vh;
+      }
+      aside {
+        width: 240px;
+        background: #090d16;
+        border-right: 1px solid var(--border);
+        padding: 1.5rem 1rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .brand { font-size: 1.1rem; font-weight: 700; color: white; margin-bottom: 2rem; padding-left: 0.5rem; }
+      nav a {
+        display: block;
+        padding: 0.65rem 0.75rem;
+        color: var(--muted);
+        text-decoration: none;
+        border-radius: 6px;
+        margin-bottom: 0.4rem;
+        font-size: 0.95rem;
+      }
+      nav a:hover, nav a.active { background: var(--card); color: white; }
+      main { flex: 1; padding: 2.5rem; overflow-y: auto; }
+      header { margin-bottom: 2rem; }
+      .back { color: var(--accent); text-decoration: none; font-size: 0.9rem; font-weight: 600; display: inline-block; margin-bottom: 0.75rem; }
+      h1 { font-size: 1.75rem; margin: 0 0 0.5rem 0; }
+      .badge {
+        padding: 0.25rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+      .badge-published { background: #064e3b; color: #6ee7b7; }
+      .badge-draft { background: #334155; color: #cbd5e1; }
+      .badge-needs_review { background: #1e3a8a; color: #93c5fd; }
+      .badge-needs_attention { background: #7f1d1d; color: #fca5a5; }
+      .grid-layout { display: grid; grid-template-columns: 360px 1fr; gap: 2rem; }
+      .panel { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
+      h2 { font-size: 1.15rem; margin-top: 0; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+      .check-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #283548; font-size: 0.85rem; }
+      .btn-publish { background: var(--green); color: black; font-weight: 600; padding: 0.65rem 1rem; border: none; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 0.5rem; }
+      .btn-unpublish { background: #7f1d1d; color: #fca5a5; font-weight: 600; padding: 0.65rem 1rem; border: none; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 0.5rem; }
+      .btn-secondary { background: #1e293b; border: 1px solid var(--border); color: var(--text); padding: 0.65rem 1rem; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 0.5rem; }
+      input[type="text"] { width: 100%; box-sizing: border-box; padding: 0.5rem; background: #0f172a; border: 1px solid var(--border); border-radius: 4px; color: white; margin-top: 0.5rem; }
+      iframe { width: 100%; height: 700px; border: 1px solid var(--border); border-radius: 8px; background: white; }
+      .alert { padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9rem; }
+      .alert-error { background: #7f1d1d; color: #fca5a5; }
+      .alert-success { background: #064e3b; color: #6ee7b7; }
+    </style>
+  </head>
+  <body>
+    <aside>
+      <div>
+        <div class="brand">Otamiser Engine</div>
+        <nav>
+          <a href="/admin">Dashboard</a>
+          <a href="/admin/candidates">Candidates</a>
+          <a href="/admin/articles" class="active">Articles</a>
+          <a href="/admin/jobs">Job Queue</a>
+          <a href="/admin/validation">Verification (V1–V12)</a>
+          <a href="/compare" target="_blank">Public Hub &nearr;</a>
+        </nav>
+      </div>
+      <div>
+        <a href="/admin/login" style="color: var(--muted); font-size: 0.85rem; text-decoration: none;">Sign Out</a>
+      </div>
+    </aside>
+
+    <main>
+      <header>
+        <a href="/admin/articles" class="back">&larr; Back to articles list</a>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <h1>Otamiser vs {article.competitor_name}</h1>
+          <span class={`badge badge-${article.status}`}>{article.status}</span>
+        </div>
+        <div style="color: var(--muted); font-size: 0.9rem; margin-top: 0.25rem;">
+          Slug: <code>{article.slug}</code> • Version: v{currentVersion?.version_number || 1}
+        </div>
+      </header>
+
+      {error && <div class="alert alert-error">{error}</div>}
+      {success && <div class="alert alert-success">{success}</div>}
+
+      <div class="grid-layout">
+        <!-- Left Panel: Gate status & Actions -->
+        <div>
+          <!-- QA Gate Report -->
+          <div class="panel">
+            <h2>10-Point QA Gate Check</h2>
+            <div style="margin-bottom: 1rem;">
+              <strong>Overall Status:</strong>
+              <span style={{ color: gateReport.all_passed ? 'var(--green)' : 'var(--red)', fontWeight: 700, marginLeft: '0.5rem' }}>
+                {gateReport.all_passed ? '✓ PASSED (10/10)' : '✕ ACTION REQUIRED'}
+              </span>
+            </div>
+
+            {Object.entries(gateReport.checks || {}).map(([name, data]: [string, any]) => (
+              <div class="check-item">
+                <span>{name}</span>
+                <span style={{ color: data.passed ? 'var(--green)' : 'var(--red)', fontWeight: 600 }}>
+                  {data.passed ? 'PASS' : 'FAIL'}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <!-- Publication Controls -->
+          <div class="panel">
+            <h2>Editorial Safeguards</h2>
+
+            {article.status !== 'published' ? (
+              <form method="POST">
+                <input type="hidden" name="action" value="publish" />
+                <label style="font-size: 0.8rem; color: var(--muted);">Type <strong>PUBLISH</strong> to confirm live deployment to hub:</label>
+                <input type="text" name="confirm_text" placeholder="PUBLISH" required />
+                <button type="submit" class="btn-publish">Confirm &amp; Publish to Hub</button>
+              </form>
+            ) : (
+              <form method="POST">
+                <input type="hidden" name="action" value="unpublish" />
+                <p style="color: var(--green); font-size: 0.85rem; margin-top: 0;">Currently published live on local hub.</p>
+                <button type="submit" class="btn-unpublish">Unpublish (Revert to Draft)</button>
+              </form>
+            )}
+
+            <form method="POST" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+              <input type="hidden" name="action" value="push_webflow" />
+              <button type="submit" class="btn-secondary">Push Draft to Webflow Test Site</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Right Panel: Sandboxed HTML Preview -->
+        <div>
+          <div class="panel" style="padding: 1rem;">
+            <h2>Sandboxed HTML Preview</h2>
+            <iframe 
+              srcdoc={currentVersion?.webflow_html || '<p>No rendered HTML available for this version.</p>'} 
+              sandbox="allow-same-origin"
+            />
+          </div>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>

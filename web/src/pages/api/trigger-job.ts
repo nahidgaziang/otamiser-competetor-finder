@@ -27,3 +27,4 @@ export const POST: APIRoute = async ({ request, redirect }) => {
     return new Response(`Trigger failed: ${err.message}`, { status: 500 });
   }
 };
+

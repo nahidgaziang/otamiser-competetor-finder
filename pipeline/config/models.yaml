@@ -11,3 +11,4 @@ models:
     provider: "anthropic"
     prompt_price_per_million: 3.00
     completion_price_per_million: 15.00
+

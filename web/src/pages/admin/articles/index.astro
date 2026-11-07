@@ -1,0 +1,174 @@
+---
+import { queryAdmin } from '../../../lib/db';
+
+let articles: any[] = [];
+try {
+  const res = await queryAdmin(`
+    SELECT 
+      a.id, a.slug, a.status, a.hub_published_at, a.hub_published_by,
+      c.name as competitor_name, c.canonical_domain,
+      v.id as version_id, v.version_number, v.gate_report, v.model, v.created_at
+    FROM app.articles a
+    JOIN app.competitors c ON a.competitor_id = c.id
+    LEFT JOIN app.article_versions v ON a.current_version_id = v.id
+    ORDER BY a.updated_at DESC;
+  `);
+  articles = res.rows;
+} catch (e) {
+  console.error("Failed to load articles:", e);
+}
+---
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Comparison Articles | Competitor Intelligence</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --card: #1e293b;
+        --text: #f8fafc;
+        --muted: #94a3b8;
+        --accent: #3b82f6;
+        --border: #334155;
+        --green: #22c55e;
+        --amber: #f59e0b;
+        --red: #ef4444;
+      }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+        min-height: 100vh;
+      }
+      aside {
+        width: 240px;
+        background: #090d16;
+        border-right: 1px solid var(--border);
+        padding: 1.5rem 1rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .brand { font-size: 1.1rem; font-weight: 700; color: white; margin-bottom: 2rem; padding-left: 0.5rem; }
+      nav a {
+        display: block;
+        padding: 0.65rem 0.75rem;
+        color: var(--muted);
+        text-decoration: none;
+        border-radius: 6px;
+        margin-bottom: 0.4rem;
+        font-size: 0.95rem;
+      }
+      nav a:hover, nav a.active { background: var(--card); color: white; }
+      main { flex: 1; padding: 2.5rem; overflow-y: auto; }
+      header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+      h1 { font-size: 1.75rem; margin: 0; }
+      .section-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1.5rem;
+      }
+      table { width: 100%; border-collapse: collapse; text-align: left; }
+      th, td { padding: 0.85rem; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+      th { color: var(--muted); font-weight: 600; }
+      .badge {
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+      .badge-draft { background: #334155; color: #cbd5e1; }
+      .badge-needs_review { background: #1e3a8a; color: #93c5fd; }
+      .badge-needs_attention { background: #7f1d1d; color: #fca5a5; }
+      .badge-published { background: #064e3b; color: #6ee7b7; }
+      .link { color: var(--accent); text-decoration: none; font-weight: 600; }
+      .link:hover { text-decoration: underline; }
+    </style>
+  </head>
+  <body>
+    <aside>
+      <div>
+        <div class="brand">Otamiser Engine</div>
+        <nav>
+          <a href="/admin">Dashboard</a>
+          <a href="/admin/candidates">Candidates</a>
+          <a href="/admin/articles" class="active">Articles ({articles.length})</a>
+          <a href="/admin/jobs">Job Queue</a>
+          <a href="/admin/validation">Verification (V1–V12)</a>
+          <a href="/compare" target="_blank">Public Hub &nearr;</a>
+        </nav>
+      </div>
+      <div>
+        <a href="/admin/login" style="color: var(--muted); font-size: 0.85rem; text-decoration: none;">Sign Out</a>
+      </div>
+    </aside>
+
+    <main>
+      <header>
+        <div>
+          <h1>Comparison Articles</h1>
+          <p style="color: var(--muted); margin: 0.25rem 0 0 0; font-size: 0.9rem;">Review drafts, gate verification reports, and publish to the local hub.</p>
+        </div>
+      </header>
+
+      <div class="section-card">
+        {articles.length === 0 ? (
+          <p style="color: var(--muted);">No articles created yet.</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Competitor</th>
+                <th>Slug</th>
+                <th>Status</th>
+                <th>Version</th>
+                <th>QA Gate</th>
+                <th>Published State</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {articles.map((a) => {
+                const gatePassed = a.gate_report?.all_passed;
+                return (
+                  <tr>
+                    <td><strong>{a.competitor_name}</strong><br/><span style="color: var(--muted); font-size: 0.8rem;">{a.canonical_domain}</span></td>
+                    <td style="font-family: monospace; font-size: 0.85rem;">{a.slug}</td>
+                    <td><span class={`badge badge-${a.status}`}>{a.status}</span></td>
+                    <td>v{a.version_number || 1}</td>
+                    <td>
+                      {a.gate_report ? (
+                        <span style={{ color: gatePassed ? 'var(--green)' : 'var(--red)', fontWeight: 600 }}>
+                          {gatePassed ? '✓ Passed (10/10)' : '✕ Failed Checks'}
+                        </span>
+                      ) : (
+                        <span style="color: var(--muted);">Pending</span>
+                      )}
+                    </td>
+                    <td>
+                      {a.status === 'published' ? (
+                        <span style="color: var(--green); font-size: 0.85rem;">Published ({a.hub_published_by})</span>
+                      ) : (
+                        <span style="color: var(--muted); font-size: 0.85rem;">Draft Only</span>
+                      )}
+                    </td>
+                    <td>
+                      <a href={`/admin/articles/${a.id}`} class="link">Review &amp; Edit &rarr;</a>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </main>
+  </body>
+</html>

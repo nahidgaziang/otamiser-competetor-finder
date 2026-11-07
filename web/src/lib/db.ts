@@ -35,3 +35,4 @@ export async function queryAdmin(text: string, params: any[] = []) {
     client.release();
   }
 }
+
