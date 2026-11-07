@@ -71,6 +71,18 @@ try {
         cursor: pointer;
       }
       .btn:hover { background: #2563eb; }
+      .btn-retry {
+        background: #2563eb;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 0.35rem 0.7rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s ease;
+      }
+      .btn-retry:hover { background: #1d4ed8; }
       .section-card {
         background: var(--card);
         border: 1px solid var(--border);
@@ -138,6 +150,7 @@ try {
                 <th>Dedupe Key</th>
                 <th>Created</th>
                 <th>Error</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -149,6 +162,16 @@ try {
                   <td style="color: var(--muted); font-size: 0.8rem; font-family: monospace;">{j.dedupe_key || '—'}</td>
                   <td style="color: var(--muted);">{new Date(j.created_at).toLocaleTimeString()}</td>
                   <td style="color: #fca5a5; font-size: 0.85rem;">{j.error || '—'}</td>
+                  <td>
+                    {j.status === 'failed' ? (
+                      <form method="POST" action="/api/retry-job" style="margin: 0;">
+                        <input type="hidden" name="job_id" value={j.id} />
+                        <button type="submit" class="btn-retry" title="Reset attempts and re-enqueue">↻ Retry</button>
+                      </form>
+                    ) : (
+                      <span style="color: var(--muted); font-size: 0.85rem;">—</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

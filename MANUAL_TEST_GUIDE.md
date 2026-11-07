@@ -97,6 +97,7 @@ Tick each item as you go.
 | 2 | Open `/admin` | Redirects to the login page |
 | 3 | Log in: `admin@otamiser.local` / `admin123` | Admin dashboard (this login is bug WEB5b; it should be replaced) |
 | 4 | Seed the catalog. There's no button for this, so in a third PowerShell window run `cd ...\otamiser-prototype\pipeline` then `uv run python -m compare_pipeline run seed-catalog` | Window A logs the job; the dashboard shows about 41 competitors |
+| 4b | Fill the empty catalog articles with demo pages: `uv run python scripts/seed_demo_articles.py` (in `pipeline`, with `.env` loaded). Undo: add `--undo` | About 33 cards on `/compare`, each tagged **Demo**; each page has a "Demo content" banner. List pages ("best … software") are skipped |
 | 5 | Jobs → run **discover** | Window A shows searches; up to 5 new candidates appear under Candidates, each with a quote |
 | 6 | Candidates → **Skip** one | It disappears from the list |
 | 7 | Candidates → **Approve** one | Window A runs research, then generate, which **fails** with "ANTHROPIC_API_KEY is not configured" and retries 3 times. That is correct error handling without a key |

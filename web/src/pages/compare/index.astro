@@ -6,7 +6,8 @@ import { formatDate, initial } from '../../lib/article';
 let comparisons: any[] = [];
 try {
   const res = await queryHub(`
-    SELECT article_id, slug, competitor_name, canonical_domain, competitor_summary, hub_published_at
+    SELECT article_id, slug, competitor_name, canonical_domain, competitor_summary, hub_published_at,
+           (content->>'demo') = 'true' AS is_demo, content->>'meta_description' AS description
     FROM app.published_articles
     ORDER BY competitor_name ASC
   `);
@@ -50,10 +51,13 @@ try {
                   </span>
                 </span>
                 <span class="card-summary">
-                  {c.competitor_summary || `How Otamiser and ${c.competitor_name} compare on features, pricing and fit.`}
+                  {c.description || c.competitor_summary || `How Otamiser and ${c.competitor_name} compare on features, pricing and fit.`}
                 </span>
                 <span class="card-foot">
-                  <span class="card-date">{formatDate(c.hub_published_at) ?? ''}</span>
+                  <span class="card-date">
+                    {c.is_demo && <span class="demo-tag">Demo</span>}
+                    {formatDate(c.hub_published_at) ?? ''}
+                  </span>
                   <span class="card-link" aria-hidden="true">Read comparison →</span>
                 </span>
               </a>
@@ -79,6 +83,7 @@ try {
   .card-domain { display: block; font-size: 0.82rem; color: var(--muted); }
   .card-summary { color: var(--text); font-size: 0.95rem; line-height: 1.55; flex: 1; }
   .card-foot { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; padding-top: 0.85rem; border-top: 1px solid var(--border); font-size: 0.85rem; }
-  .card-date { color: var(--muted); }
+  .card-date { color: var(--muted); display: inline-flex; align-items: center; gap: 0.5rem; }
+  .demo-tag { padding: 0.1rem 0.45rem; border-radius: 6px; background: var(--partial-soft); color: var(--partial); font-weight: 650; font-size: 0.75rem; }
   .card-link { color: var(--brand); font-weight: 650; }
 </style>

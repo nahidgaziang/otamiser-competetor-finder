@@ -67,6 +67,12 @@ const ctaHref = safeHref(content.cta_button_url) ?? 'https://www.otamiser.com/';
   </section>
 
   <article class="wrap article">
+    {content.demo === true && (
+      <p class="demo-note" role="note">
+        <strong>Demo content.</strong> This page was filled from a template to preview the layout. The {competitor} column
+        uses placeholder values and has not been researched.
+      </p>
+    )}
     {has(content.intro) && (
       <div class="intro">
         <RichText paras={content.intro} />
@@ -196,6 +202,8 @@ const ctaHref = safeHref(content.cta_button_url) ?? 'https://www.otamiser.com/';
   .article p { margin: 0 0 1rem; }
   .article p:last-child { margin-bottom: 0; }
   .intro p { font-size: 1.125rem; }
+  .demo-note { margin: 0 0 2rem; padding: 0.85rem 1.1rem; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--partial) 35%, var(--border)); background: var(--partial-soft); color: var(--text); font-size: 0.95rem; }
+  .demo-note strong { color: var(--partial); }
 
   .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.35rem 1.5rem; }
   .panel-us { background: var(--brand-soft); border-color: color-mix(in srgb, var(--brand) 30%, var(--border)); }
