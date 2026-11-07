@@ -1,5 +1,16 @@
 import pg from 'pg';
 
+if (!process.env.DATABASE_URL_WEB && typeof process.loadEnvFile === 'function') {
+  for (const envPath of ['.env', '../.env', '../../.env']) {
+    try {
+      process.loadEnvFile(envPath);
+      if (process.env.DATABASE_URL_WEB) break;
+    } catch {
+      // ignore
+    }
+  }
+}
+
 const { Pool } = pg;
 
 const WEB_DB_URL = process.env.DATABASE_URL_WEB || 'postgresql://web_app@127.0.0.1:5432/otamiser_local';
