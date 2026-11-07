@@ -111,3 +111,15 @@ npm run dev
 cd pipeline
 uv run pytest -v
 ```
+
+---
+
+## Testing, CI and CD
+
+- **Code review and defect list:** [`reports/code-review.md`](reports/code-review.md). Defects are tracked by tests marked as expected failures with a bug ID; remove the marker when you fix one.
+- **Pipeline tests:** `cd pipeline && uv run pytest`. Integration tests need a disposable database whose name ends in `_test`; they refuse anything else.
+- **Web security E2E tests:** `cd web && npm run build && npm test` (same `_test` database rule).
+- **CI** (`.github/workflows/ci.yml`): lint and types, tests on PostgreSQL 18, web E2E, pip-audit, npm audit, gitleaks, Semgrep.
+- **CD** (`.github/workflows/release.yml`): tag `vX.Y.Z` → full CI → GitHub Release with checksummed artifacts. The deploy job is off until hosting is set up (`HOSTING_GUIDE.md`).
+- **Local hooks:** `pre-commit install` (gitleaks + ruff).
+

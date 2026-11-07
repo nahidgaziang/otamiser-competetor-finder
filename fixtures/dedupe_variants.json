@@ -118,6 +118,22 @@
     "target_domain": "otainsight.com",
     "match_type": "rebrand_alias",
     "expected_duplicate": true
+  },
+  {
+    "input_name": "Hostfully",
+    "input_url": "https://hostfully.com",
+    "target_name": "PriceLabs",
+    "target_domain": "pricelabs.co",
+    "match_type": "distinct_company",
+    "expected_duplicate": false
+  },
+  {
+    "input_name": "RoomPriceGenie",
+    "input_url": "https://roompricegenie.com",
+    "target_name": "Revmax",
+    "target_domain": "revmax.io",
+    "match_type": "distinct_company",
+    "expected_duplicate": false
   }
 ]
 

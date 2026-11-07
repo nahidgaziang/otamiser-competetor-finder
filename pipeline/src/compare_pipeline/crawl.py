@@ -17,7 +17,13 @@ logger = logging.getLogger("crawl")
 
 # Page classification patterns
 TIER_PATTERNS = [
-    (re.compile(r"/(pricing|plans|rates|costs|packages|api|docs)", re.IGNORECASE), "A"),
+    (
+        re.compile(
+            r"/(pricing|plans|rates|costs|packages|api|docs|help|support|kb)",
+            re.IGNORECASE,
+        ),
+        "A",
+    ),
     (
         re.compile(
             r"/(features|product|platform|solutions|how-it-works|services)",
@@ -131,6 +137,11 @@ def crawl_page(url: str) -> tuple[str, str]:
     Returns: (content_markdown, fetcher_used)
     """
     import asyncio
+
+    from compare_pipeline.http.safe_fetch import validate_target_url
+
+    # SSRF guard before launching headless browser or fetchers
+    validate_target_url(url)
 
     try:
         # Try Crawl4AI

@@ -1,4 +1,5 @@
 # Brand Knowledge & Comparison Guidelines
+# needs_decision: minimum portfolio size conflict (15-listing vs 20-unit minimum requirement across sources)
 brand:
   name: "Otamiser"
   domain: "otamiser.com"
@@ -7,24 +8,29 @@ brand:
     - id: "fact-ota-ranking"
       claim: "Daily automated search ranking tracking across Airbnb, Booking.com, Vrbo, and Expedia"
       status: "public"
+      source_url: "https://www.otamiser.com/features"
     - id: "fact-dynamic-pricing"
       claim: "Dynamic pricing algorithmically calibrated to live search visibility position"
       status: "public"
+      source_url: "https://www.otamiser.com/features"
     - id: "fact-managed-deals"
       claim: "Complete management of Booking.com Genius, Preferred Partner, and limited-time deals"
       status: "public"
+      source_url: "https://www.otamiser.com/features"
     - id: "fact-auto-diagnosis"
       claim: "Continuous automated diagnosis of ranking drops with immediate algorithmic rate action"
       status: "public"
+      source_url: "https://www.otamiser.com/features"
     - id: "fact-done-for-you"
       claim: "Full done-for-you operation managed by dedicated revenue specialists and automated algorithms"
       status: "public"
+      source_url: "https://www.otamiser.com/about"
 
 cta:
   heading: "Ready to automate your OTA revenue?"
   description: "See how Otamiser combines daily search ranking tracking with automated dynamic pricing to increase RevPAR."
   button_text: "Schedule Free Demo"
-  button_url: "https://www.otamiser.com/book-demo"
+  button_url: "https://www.otamiser.com/book-a-call-with-our-experts"
 
 style_rules:
   min_words: 900

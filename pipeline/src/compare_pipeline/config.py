@@ -20,16 +20,16 @@ class Settings(BaseSettings):
 
     # Database Configuration
     DATABASE_URL: str = Field(
-        default="postgresql://postgres:postgres_dev_pass_123@127.0.0.1:5432/otamiser_local"
+        default="postgresql://postgres@127.0.0.1:5432/otamiser_local"
     )
     DATABASE_URL_MIGRATOR: str = Field(
-        default="postgresql://migrator:migrator_pass_123@127.0.0.1:5432/otamiser_local"
+        default="postgresql://migrator@127.0.0.1:5432/otamiser_local"
     )
     DATABASE_URL_PIPELINE: str = Field(
-        default="postgresql://pipeline_rw:pipeline_rw_pass_123@127.0.0.1:5432/otamiser_local"
+        default="postgresql://pipeline_rw@127.0.0.1:5432/otamiser_local"
     )
     DATABASE_URL_WEB: str = Field(
-        default="postgresql://web_app:web_app_pass_123@127.0.0.1:5432/otamiser_local"
+        default="postgresql://web_app@127.0.0.1:5432/otamiser_local"
     )
 
     # AI Configuration (Spend cap $5.00 USD)

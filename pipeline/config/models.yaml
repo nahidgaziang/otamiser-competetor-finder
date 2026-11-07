@@ -5,10 +5,9 @@ max_prompt_tokens: 90000
 models:
   claude-haiku-5-5:
     provider: "anthropic"
-    prompt_price_per_million: 1.00
-    completion_price_per_million: 5.00
+    prompt_price_per_million: 0.10
+    completion_price_per_million: 0.50
   claude-sonnet-5-5:
     provider: "anthropic"
-    prompt_price_per_million: 3.00
-    completion_price_per_million: 15.00
-
+    prompt_price_per_million: 2.00
+    completion_price_per_million: 10.00

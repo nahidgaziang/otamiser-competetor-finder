@@ -46,7 +46,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
     return redirect('/admin/candidates');
   } catch (err: any) {
     console.error('Candidate action error:', err);
-    return new Response(`Action failed: ${err.message}`, { status: 500 });
+    return new Response('Internal failure processing request.', { status: 500 });
   }
 };
 

@@ -1,4 +1,5 @@
 import pytest
+import respx
 
 from compare_pipeline.webflow import WebflowBlockedEndpointError, WebflowSafeClient
 
@@ -36,9 +37,24 @@ def test_webflow_blocks_unlisted_endpoints():
         assert "allowlist" in str(exc_info.value).lower()
 
 
+@respx.mock
 def test_webflow_push_draft_enforces_draft_payload():
     """Validates that items are created strictly as drafts (lastPublished is None)."""
-    client = WebflowSafeClient()
+    respx.post("https://api.webflow.com/v2/collections/col123/items/insert").respond(
+        200,
+        json={
+            "items": [
+                {
+                    "id": "mock_wf_123",
+                    "isDraft": True,
+                    "isArchived": False,
+                    "lastPublished": None,
+                    "fieldData": {"slug": "otamiser-vs-sample"},
+                }
+            ]
+        },
+    )
+    client = WebflowSafeClient(mode="test", token="secret_token")
     fields = {
         "name": "Otamiser vs Sample",
         "slug": "otamiser-vs-sample",

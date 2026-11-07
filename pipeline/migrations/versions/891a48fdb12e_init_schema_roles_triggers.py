@@ -486,6 +486,8 @@ def upgrade() -> None:
     DECLARE
         v_job_id uuid;
         v_dedupe_key text := NULL;
+        v_comp_id uuid;
+        v_art_id uuid;
     BEGIN
         -- Validate allowed kinds
         IF p_kind NOT IN ('discover', 'research', 'generate', 'gate', 'push_webflow', 'seed_catalog') THEN
@@ -505,19 +507,41 @@ def upgrade() -> None:
             RAISE EXCEPTION 'Job kind % requires article_id in payload', p_kind;
         END IF;
 
-        -- Derive dedupe_key if not provided
-        IF p_payload ? 'dedupe_key' THEN
-            v_dedupe_key := p_payload->>'dedupe_key';
-        ELSE
-            IF p_kind = 'seed_catalog' THEN
-                v_dedupe_key := 'seed_catalog';
-            ELSIF p_kind = 'discover' THEN
-                v_dedupe_key := 'discover_' || to_char(now(), 'YYYYMMDD_HH24');
-            ELSIF p_kind IN ('research', 'generate') THEN
-                v_dedupe_key := p_kind || '_' || (p_payload->>'competitor_id');
-            ELSIF p_kind IN ('gate', 'push_webflow') THEN
-                v_dedupe_key := p_kind || '_' || (p_payload->>'article_id');
+        -- Validate competitor_id when present
+        IF p_payload ? 'competitor_id' THEN
+            BEGIN
+                v_comp_id := (p_payload->>'competitor_id')::uuid;
+            EXCEPTION WHEN OTHERS THEN
+                RAISE EXCEPTION 'Invalid UUID for competitor_id: %', (p_payload->>'competitor_id');
+            END;
+            IF NOT EXISTS (SELECT 1 FROM app.competitors WHERE id = v_comp_id) THEN
+                RAISE EXCEPTION 'competitor_id does not exist: %', v_comp_id;
             END IF;
+        END IF;
+
+        -- Validate article_id when present
+        IF p_payload ? 'article_id' THEN
+            BEGIN
+                v_art_id := (p_payload->>'article_id')::uuid;
+            EXCEPTION WHEN OTHERS THEN
+                RAISE EXCEPTION 'Invalid UUID for article_id: %', (p_payload->>'article_id');
+            END;
+            IF NOT EXISTS (SELECT 1 FROM app.articles WHERE id = v_art_id) THEN
+                RAISE EXCEPTION 'article_id does not exist: %', v_art_id;
+            END IF;
+        END IF;
+
+        -- Derive dedupe_key: for resource-bound jobs, force canonical key (caller cannot bypass)
+        IF p_kind IN ('research', 'generate') THEN
+            v_dedupe_key := p_kind || '_' || (p_payload->>'competitor_id');
+        ELSIF p_kind IN ('gate', 'push_webflow') THEN
+            v_dedupe_key := p_kind || '_' || (p_payload->>'article_id');
+        ELSIF p_payload ? 'dedupe_key' THEN
+            v_dedupe_key := p_payload->>'dedupe_key';
+        ELSIF p_kind = 'seed_catalog' THEN
+            v_dedupe_key := 'seed_catalog';
+        ELSIF p_kind = 'discover' THEN
+            v_dedupe_key := 'discover_' || to_char(now(), 'YYYYMMDD_HH24');
         END IF;
 
         -- Insert job with partial unique constraint handling
@@ -546,7 +570,10 @@ def upgrade() -> None:
     GRANT USAGE ON SCHEMA app TO pipeline_rw;
     GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA app TO pipeline_rw;
     REVOKE DELETE ON ALL TABLES IN SCHEMA app FROM pipeline_rw;
+    REVOKE INSERT, UPDATE ON app.admin_audit_log FROM pipeline_rw;
+    REVOKE ALL ON app.alembic_version FROM pipeline_rw;
     GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA app TO pipeline_rw;
+    REVOKE EXECUTE ON FUNCTION app.request_job(text, jsonb, text) FROM PUBLIC;
     GRANT EXECUTE ON FUNCTION app.request_job(text, jsonb, text) TO pipeline_rw;
 
     -- Grants for web_app (admin UI & hub)

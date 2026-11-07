@@ -73,7 +73,7 @@ def main():
             payload = {}
             if args.job_type in ("research", "generate"):
                 payload["competitor_id"] = args.competitor_id
-            elif args.job_type in ("gate", "push_webflow"):
+            elif args.job_type in ("gate", "push_webflow", "push-webflow"):
                 payload["article_id"] = args.article_id
 
             job_id = request_job(

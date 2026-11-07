@@ -65,6 +65,7 @@ def calculate_call_cost(
 class LLMClient:
     def __init__(self, model_name: str | None = None):
         cfg = load_model_config()
+        self.config = cfg
         self.model_name = model_name or cfg.get("default_model", "claude-haiku-5-5")
         self.cap_usd = float(cfg.get("cap_usd", 5.00))
         self.api_key = settings.ANTHROPIC_API_KEY
@@ -88,46 +89,52 @@ class LLMClient:
         Executes strict structured LLM generation with spend tracking and logging.
         If ANTHROPIC_API_KEY is not configured, provides a mock-structured response for testing.
         """
+        # Token-count safety check before calling the model
+        estimated_tokens = len(prompt) // 4
+        max_prompt = self.config.get("max_prompt_tokens", 90000)
+        if estimated_tokens > max_prompt:
+            raise ValueError(
+                f"Prompt exceeds max_prompt_tokens ({estimated_tokens} > {max_prompt})"
+            )
+
         self.check_spend_cap()
         start_time = time.time()
 
         if not self.api_key:
-            logger.info(
-                "No ANTHROPIC_API_KEY configured; running in mock generation mode."
-            )
-            # In mock mode, return an instance constructed from mock data or schemas
-            duration_ms = int((time.time() - start_time) * 1000)
-            self._log_call(
-                job_id=job_id,
-                stage=stage,
-                prompt_tokens=500,
-                completion_tokens=800,
-                cost_usd=0.000000,
-                duration_ms=duration_ms,
-                prompt_preview=prompt[:200],
-                response_preview="[Mock structured response generated]",
-            )
-            # Create synthetic mock instance for response_model
-            return self._create_mock_instance(response_model)
+            raise ValueError("ANTHROPIC_API_KEY is not configured; cannot call LLM")
 
         import anthropic
 
         client = anthropic.Anthropic(api_key=self.api_key)
 
+        output_config = {
+            "format": {
+                "type": "json_schema",
+                "schema": response_model.model_json_schema(),
+            }
+        }
+
         response = client.messages.create(
             model=self.model_name,
-            max_tokens=4096,
+            max_tokens=16384,
             system=system_prompt,
             messages=[{"role": "user", "content": prompt}],
+            output_config=output_config,
         )
 
         duration_ms = int((time.time() - start_time) * 1000)
-        prompt_tokens = response.usage.input_tokens
-        completion_tokens = response.usage.output_tokens
+        prompt_tokens = getattr(response.usage, "input_tokens", 0)
+        completion_tokens = getattr(response.usage, "output_tokens", 0)
         cost = calculate_call_cost(self.model_name, prompt_tokens, completion_tokens)
 
-        raw_text = response.content[0].text if response.content else "{}"
+        raw_text = "{}"
+        if response.content:
+            for block in response.content:
+                if getattr(block, "type", None) == "text" or hasattr(block, "text"):
+                    raw_text = block.text
+                    break
 
+        # Log call before model validation so spend cap is accurately tracked even on parse failure
         self._log_call(
             job_id=job_id,
             stage=stage,

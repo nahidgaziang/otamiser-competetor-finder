@@ -1,0 +1,26 @@
+# Otamiser Verified Brand Facts
+# Human-reviewed ground truth for comparison generation
+brand:
+  name: "Otamiser"
+  domain: "otamiser.com"
+  facts:
+    - id: "fact-ota-ranking"
+      claim: "Daily automated search ranking tracking across Airbnb, Booking.com, Vrbo, and Expedia"
+      status: "public"
+      source_url: "https://www.otamiser.com/features"
+    - id: "fact-dynamic-pricing"
+      claim: "Dynamic pricing algorithmically calibrated to live search visibility position"
+      status: "public"
+      source_url: "https://www.otamiser.com/features"
+    - id: "fact-managed-deals"
+      claim: "Complete management of Booking.com Genius, Preferred Partner, and limited-time deals"
+      status: "public"
+      source_url: "https://www.otamiser.com/features"
+    - id: "fact-auto-diagnosis"
+      claim: "Continuous automated diagnosis of ranking drops with immediate algorithmic rate action"
+      status: "public"
+      source_url: "https://www.otamiser.com/features"
+    - id: "fact-done-for-you"
+      claim: "Full done-for-you operation managed by dedicated revenue specialists and automated algorithms"
+      status: "public"
+      source_url: "https://www.otamiser.com/about"

@@ -140,9 +140,15 @@ def handle_push_webflow(
 
 
 class Worker:
-    def __init__(self, poll_interval: float = 2.0, reaper_interval: float = 60.0):
+    def __init__(
+        self,
+        poll_interval: float = 2.0,
+        reaper_interval: float = 60.0,
+        heartbeat_interval: float = 5.0,
+    ):
         self.poll_interval = poll_interval
         self.reaper_interval = reaper_interval
+        self.heartbeat_interval = heartbeat_interval
         self.running = True
         self.last_reap = 0.0
 
@@ -181,8 +187,29 @@ class Worker:
                 fail_job(session, job_id, err)
             return True
 
+        import threading
+        from sqlalchemy import text
+
+        stop_hb = threading.Event()
+
+        def _heartbeat():
+            while not stop_hb.wait(self.heartbeat_interval):
+                try:
+                    with get_pipeline_session() as hb_session:
+                        hb_session.execute(
+                            text(
+                                "UPDATE app.jobs SET heartbeat_at = clock_timestamp() WHERE id = :jid AND status = 'running'"
+                            ),
+                            {"jid": job_id},
+                        )
+                        hb_session.commit()
+                except Exception as exc:
+                    logger.debug("Heartbeat ping skipped: %s", exc)
+
+        hb_thread = threading.Thread(target=_heartbeat, daemon=True)
+        hb_thread.start()
+
         try:
-            # Periodically heartbeat while executing
             result, chain_next = handler(payload)
             with get_pipeline_session() as session:
                 chained_id = complete_job(
@@ -199,6 +226,9 @@ class Worker:
                     logger.info("Job %s re-queued with exponential backoff", job_id)
                 else:
                     logger.error("Job %s failed permanently", job_id)
+        finally:
+            stop_hb.set()
+            hb_thread.join(timeout=1.0)
 
         return True
 

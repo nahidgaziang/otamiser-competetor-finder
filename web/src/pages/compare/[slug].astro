@@ -5,13 +5,11 @@ const { slug } = Astro.params;
 
 let article: any = null;
 try {
-  // Query published view or fallback to current version
+  // Query exclusively from published articles view (status = 'published')
   const res = await queryHub(`
-    SELECT a.slug, c.name as competitor_name, c.canonical_domain, v.content, v.webflow_html
-    FROM app.articles a
-    JOIN app.competitors c ON a.competitor_id = c.id
-    LEFT JOIN app.article_versions v ON a.current_version_id = v.id
-    WHERE a.slug = $1
+    SELECT slug, competitor_name, canonical_domain, content, webflow_html
+    FROM app.published_articles
+    WHERE slug = $1
     LIMIT 1
   `, [slug]);
 

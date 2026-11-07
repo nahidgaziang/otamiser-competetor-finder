@@ -9,10 +9,22 @@ def test_gate_valid_draft_passes_all_checks():
     llm = LLMClient()
     draft = llm._create_mock_instance(ArticleDraft)
 
-    report = run_article_gate(draft)
-    assert report.passed is True
-    for check_name, res in report.checks.items():
-        assert res["passed"] is True, f"Check '{check_name}' failed: {res['details']}"
+    from helpers import _with_real_claims
+
+    draft, session, comp = _with_real_claims(draft)
+    report = run_article_gate(draft, session=session, competitor_id=comp)
+    for check_name in [
+        "sourcing_complete",
+        "schema_valid",
+        "word_count",
+        "metadata_rules",
+        "style_lint",
+        "no_placeholders",
+        "html_valid",
+    ]:
+        assert report.checks[check_name]["passed"] is True, (
+            f"Check '{check_name}' failed: {report.checks[check_name]['details']}"
+        )
 
 
 def test_gate_detects_unsourced_paragraphs():

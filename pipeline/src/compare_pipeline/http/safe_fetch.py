@@ -2,6 +2,7 @@ import ipaddress
 import socket
 import time
 import urllib.parse
+import urllib.robotparser
 
 import httpx
 
@@ -36,18 +37,32 @@ class SafeFetchError(Exception):
 
 
 def is_ip_prohibited(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
-    """Checks if an IP address belongs to private, loopback, link-local, multicast or metadata spaces."""
-    if (
-        ip.is_private
-        or ip.is_loopback
-        or ip.is_link_local
-        or ip.is_multicast
-        or ip.is_reserved
-    ):
+    """Checks if an IP address belongs to private, loopback, link-local, multicast, CGNAT or metadata spaces."""
+    if not ip.is_global:
         return True
     if ip in PROHIBITED_METADATA_IPS:
         return True
     return False
+
+
+def check_robots_allowed(url: str, user_agent: str = "OtamiserResearchBot") -> bool:
+    """Fetches and checks robots.txt for URL permission."""
+    parsed = urllib.parse.urlparse(url)
+    if parsed.path == "/robots.txt":
+        return True
+    robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
+    rp = urllib.robotparser.RobotFileParser()
+    try:
+        with httpx.Client(timeout=5.0) as c:
+            r = c.get(robots_url, headers={"User-Agent": user_agent})
+            if r.status_code == 200:
+                rp.parse(r.text.splitlines())
+            else:
+                rp.allow_all = True
+    except Exception:
+        rp.allow_all = True
+
+    return rp.can_fetch(user_agent, url) and rp.can_fetch("*", url)
 
 
 def validate_target_url(url: str) -> urllib.parse.ParseResult:
@@ -116,7 +131,7 @@ def safe_fetch(
     redirect_count = 0
 
     req_headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36 (OtamiserResearchBot/1.0)",
+        "User-Agent": "OtamiserResearchBot/1.0 (+https://otamiser.com/bot; research@otamiser.com)",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
     }
@@ -126,6 +141,11 @@ def safe_fetch(
     while True:
         parsed = validate_target_url(current_url)
         domain = parsed.hostname or ""
+
+        if not current_url.endswith("/robots.txt") and not check_robots_allowed(
+            current_url
+        ):
+            raise SafeFetchError(f"URL disallowed by robots.txt: {current_url}")
 
         if apply_rate_limit:
             enforce_domain_rate_limit(domain)
@@ -161,9 +181,11 @@ def safe_fetch(
                         .strip()
                         .lower()
                     )
-                    if content_type and content_type not in ALLOWED_CONTENT_TYPES:
+                    if not content_type or content_type not in ALLOWED_CONTENT_TYPES:
                         raise SafeFetchError(
                             f"Disallowed content-type: '{content_type}'"
+                            if content_type
+                            else "Disallowed content-type: missing Content-Type header"
                         )
 
                     # Read body with 5 MB cap

@@ -2,7 +2,7 @@ import pg from 'pg';
 
 const { Pool } = pg;
 
-const WEB_DB_URL = process.env.DATABASE_URL_WEB || 'postgresql://web_app:web_app_pass_123@127.0.0.1:5432/otamiser_local';
+const WEB_DB_URL = process.env.DATABASE_URL_WEB || 'postgresql://web_app@127.0.0.1:5432/otamiser_local';
 
 // Admin Pool (web_app role)
 export const poolAdmin = new Pool({

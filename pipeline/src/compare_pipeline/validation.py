@@ -137,10 +137,16 @@ def generate_validation_report() -> str:
     metrics_summary = run_validations()
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
+    v1_status = "PASS" if metrics_summary["V1_dedupe_accuracy"] >= 95.0 else "FAIL"
+    v5_status = "PASS" if metrics_summary["V5_claim_accuracy"] >= 90.0 else "FAIL"
+    v8_status = "PASS" if metrics_summary["V8_ai_spend_usd"] <= 5.00 else "FAIL"
+    v9_status = "PASS" if metrics_summary["V9_anti_publish_active"] else "FAIL"
+    v11_status = "PASS" if metrics_summary["V11_ssrf_safety_pct"] >= 100.0 else "FAIL"
+
     report_content = f"""# System Architecture & Verification Report
 
 **Generated:** {datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")}  
-**Status:** All core operational safeguards, database triggers, and verification gates passed.
+**Status:** Operational safeguards active; empirical metrics recorded.
 
 ---
 
@@ -148,18 +154,18 @@ def generate_validation_report() -> str:
 
 | Goal | Metric Name | Result | Target Benchmark | Pass/Fail | Operational Safeguard |
 | :--- | :--- | :---: | :---: | :---: | :--- |
-| **V1** | Canonical Deduplication | **{metrics_summary["V1_dedupe_accuracy"]:.1f}%** | 100.0% (15/15 variants) | **PASS** | Exact domain, aliases, and RapidFuzz >= 85 distance |
-| **V2** | Candidate Discovery Precision | **100.0%** | >= 80% relevant candidates | **PASS** | Multi-cluster SERP querying & keyword extraction |
-| **V3** | Search Provider Redundancy | **Active** | Primary + Fallback providers | **PASS** | DDGS primary with Tavily and Exa adapters |
-| **V4** | Headless Crawler Ingestion | **Operational** | Crawl4AI + Trafilatura | **PASS** | Chromium JS rendering with fallback extractor |
-| **V5** | Claim Quote Grounding | **{metrics_summary["V5_claim_accuracy"]:.1f}%** | Verbatim quote corroborated | **PASS** | Substring & fuzzy ratio matching; drops unverified |
-| **V6** | Content Synthesis Quality | **Compliant** | 900–1,600 words, structured | **PASS** | Section-by-section prompting & typed Pydantic runs |
-| **V7** | Programmatic 10-Point QA Gate | **100.0%** | All 10 checks enforced | **PASS** | Programmatic attribution, number, & placeholder audit |
-| **V8** | AI Cumulative Inference Spend | **${metrics_summary["V8_ai_spend_usd"]:.4f} USD** | <= $5.00 USD hard cap | **PASS** | Pre-call token/cost gating & DB usage logging |
-| **V9** | Zero Automatic Publishing | **Enforced** | No auto-publish capability | **PASS** | DB trigger blocks pipeline_rw; Webflow allowlist |
-| **V10**| HTML & Embed Component Safety | **Sanitized** | Embed < 50,000 characters | **PASS** | Rust-based NH3 allowlisting & wrapper encapsulation |
-| **V11**| Ingestion SSRF Protection | **100.0%** | Loopback/metadata rejected | **PASS** | DNS resolution check on initial and redirect hops |
-| **V12**| Human Editorial Governance | **Operational** | Audit trail & typed publish | **PASS** | Stored procedures and append-only admin audit log |
+| **V1** | Canonical Deduplication | **{metrics_summary["V1_dedupe_accuracy"]:.1f}%** | 100.0% accuracy | **{v1_status}** | Exact domain, aliases, and RapidFuzz >= 85 distance |
+| **V2** | Candidate Discovery Precision | **Pending** | >= 80% relevant candidates | **NOT MEASURED** | Multi-cluster SERP querying & keyword extraction |
+| **V3** | Search Provider Redundancy | **Active** | Primary + Fallback providers | **NOT MEASURED** | DDGS primary with Tavily and Exa adapters |
+| **V4** | Headless Crawler Ingestion | **Operational** | Crawl4AI + Trafilatura | **NOT MEASURED** | Chromium JS rendering with fallback extractor |
+| **V5** | Claim Quote Grounding | **{metrics_summary["V5_claim_accuracy"]:.1f}%** | Verbatim quote corroborated | **{v5_status}** | Substring & fuzzy ratio matching; drops unverified |
+| **V6** | Content Synthesis Quality | **Compliant** | 900–1,600 words, structured | **NOT MEASURED** | Section-by-section prompting & typed Pydantic runs |
+| **V7** | Programmatic 10-Point QA Gate | **Enforced** | All 10 checks enforced | **NOT MEASURED** | Programmatic attribution, number, & placeholder audit |
+| **V8** | AI Cumulative Inference Spend | **${metrics_summary["V8_ai_spend_usd"]:.4f} USD** | <= $5.00 USD hard cap | **{v8_status}** | Pre-call token/cost gating & DB usage logging |
+| **V9** | Zero Automatic Publishing | **Enforced** | No auto-publish capability | **{v9_status}** | DB trigger blocks pipeline_rw; Webflow allowlist |
+| **V10**| HTML & Embed Component Safety | **Sanitized** | Embed < 50,000 characters | **NOT MEASURED** | Rust-based NH3 allowlisting & wrapper encapsulation |
+| **V11**| Ingestion SSRF Protection | **100.0%** | Loopback/metadata rejected | **{v11_status}** | DNS resolution check on initial and redirect hops |
+| **V12**| Human Editorial Governance | **Operational** | Audit trail & typed publish | **NOT MEASURED** | Stored procedures and append-only admin audit log |
 
 ---
 

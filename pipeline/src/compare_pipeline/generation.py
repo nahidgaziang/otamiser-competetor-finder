@@ -1,4 +1,5 @@
 import logging
+import re
 import uuid
 from typing import Any
 
@@ -84,7 +85,8 @@ Button: {cta.get("button_text")} -> {cta.get("button_url")}
     logger.info("Gate evaluation for %s: all_passed=%s", comp.name, gate_report.passed)
 
     # Locate or create Article row
-    slug = draft.slug or f"otamiser-vs-{comp.canonical_domain.split('.')[0]}"
+    clean_domain = re.sub(r"[^a-z0-9]+", "-", comp.canonical_domain.lower()).strip("-")
+    slug = f"otamiser-vs-{clean_domain}"
     article = session.query(Article).filter(Article.competitor_id == comp.id).first()
     if not article:
         article = Article(
@@ -95,6 +97,8 @@ Button: {cta.get("button_text")} -> {cta.get("button_url")}
         )
         session.add(article)
         session.flush()
+    else:
+        article.slug = slug
 
     # Determine version number
     prev_versions = (

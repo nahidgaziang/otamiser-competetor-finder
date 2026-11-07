@@ -1,0 +1,256 @@
+# Continuous integration for the prototype.
+#
+# Every third-party action is pinned to a full commit SHA (tag in the comment). Dependabot keeps
+# them current. Jobs get read-only repository access; no application secrets are used: database
+# passwords are generated per run and masked, and the AI / search / Webflow keys are deliberately
+# absent so nothing in CI can spend money or touch Webflow.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call: # reused by release.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "24"
+  UV_VERSION: "0.13.7"
+
+jobs:
+  lint:
+    name: Lint and type-check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+          cache-dependency-glob: pipeline/uv.lock
+
+      - name: Lockfile is up to date
+        working-directory: pipeline
+        run: uv lock --check
+
+      - name: Install pipeline (frozen)
+        working-directory: pipeline
+        run: uv sync --frozen --all-groups
+
+      - name: Ruff lint
+        working-directory: pipeline
+        run: uv run ruff check --output-format=github .
+
+      - name: Ruff format
+        working-directory: pipeline
+        run: uv run ruff format --check .
+
+      # Informational until BUG-Q2 (66 typing errors from legacy SQLAlchemy Column declarations)
+      # is fixed. Flip continue-on-error to false once `mypy src` is clean.
+      - name: Mypy (informational)
+        working-directory: pipeline
+        continue-on-error: true
+        run: uv run mypy src
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install web (clean, from lockfile)
+        working-directory: web
+        run: npm ci
+
+      - name: Astro type-check
+        working-directory: web
+        run: npm run check
+
+  test:
+    name: Tests (pipeline + web E2E) on PostgreSQL 18
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-only-superuser # throwaway container, never reachable outside the runner
+          POSTGRES_DB: otamiser_test
+          POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d otamiser_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      WEBFLOW_MODE: "off"
+      ANTHROPIC_API_KEY: ""
+      TAVILY_API_KEY: ""
+      EXA_API_KEY: ""
+      FIRECRAWL_API_KEY: ""
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Generate per-run database role passwords
+        run: |
+          for role in MIGRATOR PIPELINE WEB; do
+            pw="$(openssl rand -hex 24)"
+            echo "::add-mask::${pw}"
+            echo "PW_${role}=${pw}" >> "$GITHUB_ENV"
+          done
+
+      - name: Database URLs (disposable otamiser_test database)
+        run: |
+          base="localhost:5432/otamiser_test"
+          {
+            echo "DATABASE_URL=postgresql://postgres:ci-only-superuser@${base}"
+            echo "DATABASE_URL_MIGRATOR=postgresql://migrator:${PW_MIGRATOR}@${base}"
+            echo "DATABASE_URL_PIPELINE=postgresql://pipeline_rw:${PW_PIPELINE}@${base}"
+            echo "DATABASE_URL_WEB=postgresql://web_app:${PW_WEB}@${base}"
+          } >> "$GITHUB_ENV"
+
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+          cache-dependency-glob: pipeline/uv.lock
+
+      - name: Install pipeline (frozen)
+        working-directory: pipeline
+        run: uv sync --frozen --all-groups
+
+      - name: Create roles and migrate
+        working-directory: pipeline
+        run: |
+          uv run python -m compare_pipeline.bootstrap_roles
+          uv run alembic upgrade head
+
+      - name: Migrations round-trip (downgrade, then upgrade again)
+        working-directory: pipeline
+        run: |
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+
+      - name: Pipeline tests with coverage
+        working-directory: pipeline
+        run: >-
+          uv run --with pytest-cov==7.1.0 pytest
+          --junitxml=../reports/junit-pipeline.xml
+          --cov --cov-report=term --cov-report=xml:../reports/coverage-pipeline.xml
+          -ra
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build web app
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Web security E2E tests (against the built server)
+        working-directory: web
+        run: npm test -- --reporter=default --reporter=junit --outputFile.junit=../reports/junit-web.xml
+
+      - name: Upload test reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-reports
+          path: reports/*.xml
+          retention-days: 14
+
+  audit:
+    name: Dependency audit and secret scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # full history, so gitleaks scans every commit
+          persist-credentials: false
+
+      - name: Gitleaks (verified download, full history)
+        env:
+          GITLEAKS_VERSION: "8.30.1"
+        run: |
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          file="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL -o "$file" "$base/$file"
+          curl -sSfL -o checksums.txt "$base/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          grep " ${file}\$" checksums.txt | sha256sum --check --strict
+          tar -xzf "$file" gitleaks
+          ./gitleaks git --redact --no-banner --exit-code 1 .
+
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Python dependency audit (pip-audit)
+        working-directory: pipeline
+        run: |
+          uv export --frozen --no-dev --no-emit-project --no-hashes --format requirements-txt -o "$RUNNER_TEMP/requirements.txt"
+          uvx --from pip-audit==2.10.1 pip-audit --strict --progress-spinner off -r "$RUNNER_TEMP/requirements.txt"
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Node dependency audit (npm audit)
+        working-directory: web
+        run: npm audit --audit-level=high
+
+  sast:
+    name: Static analysis (Semgrep CE)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # Report-only until the first findings are triaged; flip to blocking afterwards.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Semgrep (Python, TypeScript, secrets, OWASP rules)
+        env:
+          SEMGREP_SEND_METRICS: "off"
+        run: >-
+          uvx --from semgrep==1.184.0 semgrep scan
+          --config p/python --config p/typescript --config p/secrets --config p/owasp-top-ten
+          --exclude web/node_modules --exclude web/dist --exclude pipeline/.venv
+          --error --sarif --output semgrep.sarif
+
+      - name: Upload Semgrep report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: semgrep-sarif
+          path: semgrep.sarif
+          retention-days: 14

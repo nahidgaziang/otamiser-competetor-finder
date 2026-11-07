@@ -10,18 +10,8 @@ try {
   `);
   comparisons = res.rows;
 } catch (e) {
-  // If no published articles yet, fallback to covered competitors for demonstration
-  try {
-    const fallback = await queryHub(`
-      SELECT a.id as article_id, a.slug, c.name as competitor_name, c.canonical_domain, c.summary as competitor_summary
-      FROM app.articles a
-      JOIN app.competitors c ON a.competitor_id = c.id
-      LIMIT 20
-    `);
-    comparisons = fallback.rows;
-  } catch (err) {
-    console.error("Hub query failed:", err);
-  }
+  console.error("Hub query failed:", e);
+  comparisons = [];
 }
 ---
 

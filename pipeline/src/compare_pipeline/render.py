@@ -87,9 +87,9 @@ def render_comparison_table_html(
         '<table class="otr-table">',
         "  <thead>",
         '    <tr class="section-row">',
-        '      <th class="col-feature">Feature Comparison</th>',
-        f'      <th class="col-c">{competitor_name}</th>',
-        f'      <th class="col-o">{baseline_name}</th>',
+        '      <th class="th-empty">Feature Comparison</th>',
+        f'      <th class="th-otamiser">{baseline_name}</th>',
+        f'      <th class="th-competitor">{competitor_name}</th>',
         "    </tr>",
         "  </thead>",
         "  <tbody>",
@@ -97,7 +97,7 @@ def render_comparison_table_html(
 
     for cat in categories:
         lines.append(
-            f'    <tr class="section-row"><th colspan="3">{cat.category_name}</th></tr>'
+            f'    <tr class="section-row"><th class="th-name" colspan="3">{cat.category_name}</th></tr>'
         )
         for row in cat.rows:
             # Competitor cell
@@ -108,7 +108,7 @@ def render_comparison_table_html(
                 c_markup = '<span class="cross">✕</span>'
             elif c_state == "partial":
                 txt = row.competitor_cell.text_content or "Partial"
-                c_markup = f'<span class="partial-icon">▲</span><span class="cell-label-partial">{txt}</span>'
+                c_markup = f'<span class="partial-icon">◐</span><span class="cell-label-partial">{txt}</span>'
             else:
                 c_markup = f"<span>{row.competitor_cell.text_content or ''}</span>"
 
@@ -120,15 +120,15 @@ def render_comparison_table_html(
                 b_markup = '<span class="cross">✕</span>'
             elif b_state == "partial":
                 txt = row.baseline_cell.text_content or "Partial"
-                b_markup = f'<span class="partial-icon">▲</span><span class="cell-label-partial">{txt}</span>'
+                b_markup = f'<span class="partial-icon">◐</span><span class="cell-label-partial">{txt}</span>'
             else:
                 b_markup = f"<span>{row.baseline_cell.text_content or ''}</span>"
 
             lines.append(
                 f'    <tr class="feature-row">'
-                f'      <td class="col-feature">{row.feature_name}</td>'
-                f'      <td class="col-c">{c_markup}</td>'
+                f'      <td class="feature-name">{row.feature_name}</td>'
                 f'      <td class="col-o">{b_markup}</td>'
+                f'      <td class="col-c">{c_markup}</td>'
                 f"    </tr>"
             )
 
@@ -157,7 +157,7 @@ def render_article_to_webflow_html(draft: ArticleDraft) -> str:
     sections.append(render_paragraphs_to_html(draft.baseline_overview))
 
     # Key Differences
-    sections.append(f"<h2>Key Differences: Otamiser vs {draft.competitor_name}</h2>")
+    sections.append("<h2>Where the two differ</h2>")
     for diff in draft.differences:
         sections.append(f"<h3>{diff.title}</h3>")
         sections.append(render_paragraphs_to_html(diff.paragraphs))
@@ -178,18 +178,16 @@ def render_article_to_webflow_html(draft: ArticleDraft) -> str:
         sections.append("<h2>Pricing Comparison</h2>")
         sections.append(render_paragraphs_to_html(draft.pricing_analysis))
 
+    # Optional Results & Impact
+    if draft.results_impact:
+        sections.append("<h2>Results and Impact</h2>")
+        sections.append(render_paragraphs_to_html(draft.results_impact))
+
     # FAQs
     sections.append("<h2>Frequently Asked Questions</h2>")
     for faq in draft.faqs:
-        sections.append(f"<h3>{faq.question}</h3>")
+        sections.append(f"<p><strong>{faq.question}</strong></p>")
         sections.append(render_paragraphs_to_html(faq.answer))
-
-    # Call to action
-    sections.append(f"<h2>{draft.cta_heading}</h2>")
-    sections.append(f"<p>{draft.cta_description}</p>")
-    sections.append(
-        f'<p><a href="{draft.cta_button_url}" class="cta-button">{draft.cta_button_text}</a></p>'
-    )
 
     raw_html = "\n\n".join(sections)
     return sanitize_html(raw_html)

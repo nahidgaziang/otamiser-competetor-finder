@@ -24,7 +24,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
     return redirect('/admin/jobs');
   } catch (err: any) {
     console.error('Trigger job error:', err);
-    return new Response(`Trigger failed: ${err.message}`, { status: 500 });
+    return new Response('Internal failure processing request.', { status: 500 });
   }
 };
 

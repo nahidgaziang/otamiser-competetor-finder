@@ -8,8 +8,16 @@ export default defineConfig({
   adapter: node({
     mode: 'standalone'
   }),
+  security: {
+    checkOrigin: true,
+    allowedDomains: [
+      { hostname: '127.0.0.1' },
+      { hostname: 'localhost' }
+    ]
+  },
   server: {
     host: '127.0.0.1',
     port: 4321
   }
 });
+

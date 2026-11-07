@@ -1,0 +1,116 @@
+# Continuous delivery.
+#
+# Pushing a tag like v0.2.0 re-runs the full CI, builds versioned artifacts (pipeline wheel + sdist,
+# built web app), writes SHA256 checksums and publishes a GitHub Release.
+#
+# Deployment is a separate, gated job that stays OFF until the team hosts the system:
+#   1. Prepare the server as described in HOSTING_GUIDE.md (section 12: forced-command deploy key,
+#      deploy.sh with health check and rollback).
+#   2. Create the "production" environment in GitHub with required reviewers.
+#   3. Add environment secrets DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS.
+#   4. Set the repository variable DEPLOY_ENABLED=true.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "24"
+  UV_VERSION: "0.13.7"
+
+jobs:
+  ci:
+    name: Full CI
+    uses: ./.github/workflows/ci.yml
+
+  package:
+    name: Build and publish release
+    needs: ci
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write # create the GitHub Release; nothing else
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Tag must match the pipeline version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(python3 -c 'import tomllib;print(tomllib.load(open("pipeline/pyproject.toml","rb"))["project"]["version"])')"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::Tag v${tag} does not match pipeline/pyproject.toml version ${version}"
+            exit 1
+          fi
+
+      - name: Build pipeline wheel and sdist
+        run: uv build --directory pipeline --out-dir "$GITHUB_WORKSPACE/dist"
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build web app
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+          tar -czf "$GITHUB_WORKSPACE/dist/web-${GITHUB_REF_NAME}.tar.gz" dist package.json package-lock.json
+
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum -- * > SHA256SUMS && cat SHA256SUMS
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=""
+          case "$GITHUB_REF_NAME" in *-*) prerelease="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --verify-tag --generate-notes $prerelease \
+            --title "Otamiser prototype ${GITHUB_REF_NAME}"
+
+  deploy:
+    name: Deploy to server
+    needs: package
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: production # configure required reviewers on this environment
+    permissions: {}
+    steps:
+      - name: Trigger deploy.sh over SSH (forced-command key, pinned host key)
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key ~/.ssh/known_hosts
+          # The server key only runs deploy.sh, which validates this 40-hex SHA, takes a backup,
+          # migrates, restarts and rolls back on a failed health check.
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" "${COMMIT_SHA}"

@@ -12,7 +12,7 @@ from compare_pipeline.jobs import (
     reap_stale_jobs,
     request_job,
 )
-from compare_pipeline.models import Job
+from compare_pipeline.models import Article, Competitor, Job
 
 
 def test_job_validation():
@@ -38,7 +38,23 @@ def test_job_validation():
 
 def test_job_deduplication():
     """Validates dedupe_key partial unique index prevents duplicate active jobs."""
-    test_comp_id = str(uuid.uuid4())
+    with get_pipeline_session() as session:
+        comp = (
+            session.query(Competitor)
+            .filter(Competitor.canonical_domain == "dedupe-test.example")
+            .first()
+        )
+        if not comp:
+            comp = Competitor(
+                id=uuid.uuid4(),
+                name="Dedupe Test Co",
+                canonical_domain="dedupe-test.example",
+                status="candidate",
+            )
+            session.add(comp)
+            session.commit()
+        test_comp_id = str(comp.id)
+
     dedupe_val = f"research_{test_comp_id}"
 
     with get_pipeline_session() as session:
@@ -231,8 +247,35 @@ def test_job_reaper():
 
 def test_job_chaining():
     """Validates chaining jobs: research completion enqueues generate, which enqueues gate."""
-    test_comp_id = str(uuid.uuid4())
-    test_article_id = str(uuid.uuid4())
+    with get_pipeline_session() as session:
+        comp = (
+            session.query(Competitor)
+            .filter(Competitor.canonical_domain == "chain-test.example")
+            .first()
+        )
+        if not comp:
+            comp = Competitor(
+                id=uuid.uuid4(),
+                name="Chain Test Co",
+                canonical_domain="chain-test.example",
+                status="candidate",
+            )
+            session.add(comp)
+            session.flush()
+        test_comp_id = str(comp.id)
+
+        art = session.query(Article).filter(Article.competitor_id == comp.id).first()
+        if not art:
+            art = Article(
+                id=uuid.uuid4(),
+                competitor_id=comp.id,
+                slug="otamiser-vs-chain-test",
+                status="draft",
+            )
+            session.add(art)
+            session.flush()
+        test_article_id = str(art.id)
+        session.commit()
 
     with get_pipeline_session() as session:
         # Start research job

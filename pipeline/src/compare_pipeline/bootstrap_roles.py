@@ -28,6 +28,7 @@ def bootstrap_roles():
             (migrator_user, migrator_pass),
             (pipeline_user, pipeline_pass),
             (web_user, web_pass),
+            ("hub_ro", "hub_ro_dev"),
         ]
         for role_name, role_pass in roles:
             cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (role_name,))

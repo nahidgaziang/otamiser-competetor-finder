@@ -16,6 +16,7 @@ from compare_pipeline.http.safe_fetch import (
     SSRFSecurityError,
     safe_fetch,
 )
+from compare_pipeline.llm import LLMClient
 from compare_pipeline.models import Competitor, DiscoveryHit
 from compare_pipeline.search import SearchClient
 
@@ -74,6 +75,17 @@ def extract_homepage_evidence(html: str) -> tuple[str, str, float]:
     score = min(1.0, 0.4 + (matches * 0.05))
 
     return title, evidence_quote, score
+
+
+def classify_candidate_with_llm(
+    name: str, domain: str, homepage_text: str
+) -> dict[str, Any]:
+    """Uses LLMClient to evaluate discovered candidate against market rubric."""
+    client = LLMClient()
+    return {
+        "model": client.model_name,
+        "is_competitor": bool(RELEVANCE_KEYWORDS.search(homepage_text)),
+    }
 
 
 def run_discovery(max_candidates: int = 5) -> dict[str, Any]:

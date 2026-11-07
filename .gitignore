@@ -40,6 +40,9 @@ data/
 
 # Reports & Metrics
 reports/raw/
+reports/*.xml
+.coverage
+coverage.xml
 
 # OS artifacts
 .DS_Store

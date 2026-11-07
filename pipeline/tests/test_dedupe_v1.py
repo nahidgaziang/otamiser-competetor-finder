@@ -15,7 +15,7 @@ def test_v1_deduplication_variants():
     with open(fixture_path, "r", encoding="utf-8") as f:
         variants = json.load(f)
 
-    assert len(variants) == 15, "Expected exactly 15 test variants for Goal V1"
+    assert len(variants) >= 15, "Expected at least 15 test variants for Goal V1"
 
     # Known existing competitors with their canonical domains and aliases
     existing_comps = [
@@ -58,5 +58,5 @@ def test_v1_deduplication_variants():
         )
         passed_count += 1
 
-    assert passed_count == 15
+    assert passed_count == len(variants)
     print("V1 Deduplication: 15/15 variants passed (100% accuracy)")

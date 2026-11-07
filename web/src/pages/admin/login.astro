@@ -1,4 +1,6 @@
 ---
+import { createSession } from '../../lib/session';
+
 let error = "";
 if (Astro.request.method === "POST") {
   try {
@@ -8,13 +10,14 @@ if (Astro.request.method === "POST") {
 
     // Local admin authentication check
     if (email === "admin@otamiser.local" && password === "admin123") {
-      Astro.cookies.set("admin_session", "authenticated_admin_session_token", {
+      const sessionToken = createSession();
+      Astro.cookies.set("admin_session", sessionToken, {
         path: "/",
         httpOnly: true,
         sameSite: "lax",
         maxAge: 60 * 60 * 8, // 8 hours
       });
-      return Astro.redirect("/admin");
+      return Astro.redirect("/admin/candidates");
     } else {
       error = "Invalid administrator credentials.";
     }
@@ -100,11 +103,6 @@ if (Astro.request.method === "POST") {
         </div>
         <button type="submit">Sign In</button>
       </form>
-
-      <div class="hint">
-        Local Prototype Default: <code>admin@otamiser.local</code> / <code>admin123</code>
-      </div>
     </div>
   </body>
 </html>
-

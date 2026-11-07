@@ -1,0 +1,6 @@
+# Triaged gitleaks findings. Each line is a finding fingerprint (commit:file:rule:line).
+# Add an entry only after confirming the match is not a secret, and say why.
+
+# False positive (triaged 2026-11-07): ANTHROPIC_API_KEY= is empty in .env.example; the
+# generic-api-key rule matched across the newline into "AI_SPEND_CAP_USD=5.00".
+68eb82a2fa1267f7ee245cbd0eba91a5a7caf27c:.env.example:generic-api-key:17

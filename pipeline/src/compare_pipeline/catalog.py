@@ -70,23 +70,51 @@ def seed_catalog() -> dict[str, Any]:
     with get_pipeline_session() as session:
         for path, raw_title in unique_entries.items():
             slug = path.replace("/compare/", "")
-            is_listicle = not ("otamiser-vs-" in slug or "vs-" in slug)
+            is_one_to_one = slug.startswith("otamiser-vs-") and slug.count("-vs-") == 1
 
-            if is_listicle:
+            if not is_one_to_one:
                 listicles_count += 1
-                # Listicles stored as covered category competitor or mentioned
-                name = raw_title or slug.replace("-", " ").title()
-                domain = f"{slug}.otamiser-topic.internal"
-                status = "mentioned"
-            else:
-                name = clean_competitor_name(raw_title, slug)
-                # Infer default domain from slug
-                domain_name = slug.split("vs-")[-1].replace("-", "")
-                domain = f"{domain_name}.com"
-                status = "covered"
+                continue
 
-            # Check if competitor exists by canonical domain
+            page_res = None
+            page_soup = None
+            try:
+                page_res = safe_fetch(f"https://www.otamiser.com{path}")
+                if page_res:
+                    page_soup = BeautifulSoup(page_res.text, "html.parser")
+            except Exception as e:
+                logger.warning("Could not fetch comparison page %s: %s", path, e)
+
+            # Find outbound competitor link on page
+            domain = None
+            if page_soup:
+                for link in page_soup.find_all("a", href=True):
+                    href = link["href"].strip()
+                    if href.startswith("http://") or href.startswith("https://"):
+                        d = extract_canonical_domain(href)
+                        if d and "otamiser" not in d and not d.endswith(".internal"):
+                            domain = d
+                            break
+
+            if not domain:
+                domain_name = slug.replace("otamiser-vs-", "").replace("-", "")
+                domain = f"{domain_name}.com"
+
+            if "otamiser" in domain.lower():
+                continue
+
+            name = clean_competitor_name(raw_title, slug)
+            if "otamiser" in name.lower() and not (" " in name or len(name) > 10):
+                continue
+
             canon_domain = extract_canonical_domain(domain)
+            if (
+                not canon_domain
+                or canon_domain.endswith(".internal")
+                or "otamiser" in canon_domain
+            ):
+                continue
+
             comp = (
                 session.query(Competitor)
                 .filter(Competitor.canonical_domain == canon_domain)
@@ -97,10 +125,10 @@ def seed_catalog() -> dict[str, Any]:
                     id=uuid.uuid4(),
                     name=name,
                     canonical_domain=canon_domain,
-                    status=status,
+                    status="covered",
                     summary=f"Discovered from public Otamiser comparison page: {path}",
                     segment="Vacation Rental / Hotel Revenue Management",
-                    type="direct" if not is_listicle else "listicle_topic",
+                    type="direct",
                 )
                 session.add(comp)
                 session.flush()
@@ -112,11 +140,8 @@ def seed_catalog() -> dict[str, Any]:
                     id=uuid.uuid4(),
                     competitor_id=comp.id,
                     slug=slug,
-                    status="published" if status == "covered" else "draft",
+                    status="draft",
                 )
-                # Since pipeline_rw cannot set status='published', we leave status as 'draft' or insert via SQL if needed
-                # Note: db trigger blocks pipeline_rw from setting status='published'.
-                art.status = "draft"
                 session.add(art)
                 session.flush()
 
@@ -126,19 +151,11 @@ def seed_catalog() -> dict[str, Any]:
             if slug in REFERENCE_SLUGS:
                 ref_filename = REFERENCE_SLUGS[slug]
                 ref_path = REFERENCES_DIR / ref_filename
-                logger.info(
-                    "Extracting style reference article for %s -> %s",
-                    slug,
-                    ref_filename,
-                )
-                try:
-                    ref_res = safe_fetch(f"https://www.otamiser.com{path}")
-                    ref_soup = BeautifulSoup(ref_res.text, "html.parser")
-                    # Extract main article body text
+                if page_soup:
                     main_elem = (
-                        ref_soup.find("main")
-                        or ref_soup.find("article")
-                        or ref_soup.body
+                        page_soup.find("main")
+                        or page_soup.find("article")
+                        or page_soup.body
                     )
                     if main_elem:
                         ref_text = main_elem.get_text(separator="\n", strip=True)
@@ -148,8 +165,6 @@ def seed_catalog() -> dict[str, Any]:
                             len(ref_text),
                             ref_path,
                         )
-                except Exception as e:
-                    logger.warning("Could not fetch reference %s: %s", slug, e)
 
     return {
         "total_pages_discovered": len(unique_entries),

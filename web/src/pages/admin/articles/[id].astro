@@ -18,21 +18,34 @@ if (Astro.request.method === "POST") {
       if (confirmText !== "PUBLISH") {
         error = "Type 'PUBLISH' in capital letters to confirm publication.";
       } else {
-        await queryAdmin(`
-          UPDATE app.articles
-          SET status = 'published',
-              hub_published_at = now(),
-              hub_published_by = 'human_admin',
-              updated_at = now()
-          WHERE id = $1;
+        const checkRes = await queryAdmin(`
+          SELECT a.status, a.current_version_id, v.gate_report
+          FROM app.articles a
+          LEFT JOIN app.article_versions v ON a.current_version_id = v.id
+          WHERE a.id = $1;
         `, [id]);
+        const currentArt = checkRes.rows[0];
+        const isPassed = currentArt?.gate_report?.all_passed === true;
 
-        await queryAdmin(`
-          INSERT INTO app.admin_audit_log (action, entity_type, entity_id, actor, details)
-          VALUES ('publish_article', 'article', $1, 'human_admin', '{"channel": "hub"}'::jsonb);
-        `, [id]);
+        if (!isPassed) {
+          error = "Refusing to publish: Article failed one or more automated quality gates.";
+        } else {
+          await queryAdmin(`
+            UPDATE app.articles
+            SET status = 'published',
+                hub_published_at = now(),
+                hub_published_by = 'human_admin',
+                updated_at = now()
+            WHERE id = $1;
+          `, [id]);
 
-        success = "Article published to local comparison hub successfully.";
+          await queryAdmin(`
+            INSERT INTO app.admin_audit_log (action, entity_type, entity_id, actor, details)
+            VALUES ('publish_article', 'article', $1, 'human_admin', '{"channel": "hub"}'::jsonb);
+          `, [id]);
+
+          success = "Article published to local comparison hub successfully.";
+        }
       }
     } else if (action === "unpublish") {
       await queryAdmin(`
@@ -259,3 +272,4 @@ const gateReport = currentVersion?.gate_report || { all_passed: false, checks: {
     </main>
   </body>
 </html>
+
