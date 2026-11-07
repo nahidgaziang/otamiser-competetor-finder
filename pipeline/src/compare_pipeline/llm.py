@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 import uuid
 from decimal import Decimal
@@ -79,7 +80,11 @@ class LLMClient:
         self.config = cfg
         self.model_name = model_name or cfg.get("default_model", "claude-haiku-5-5")
         self.cap_usd = float(cfg.get("cap_usd", 5.00))
-        self.api_key = settings.ANTHROPIC_API_KEY
+        self.api_key = settings.ANTHROPIC_API_KEY or os.environ.get("ANTHROPIC_API_KEY", "")
+        if not self.api_key:
+            from compare_pipeline.config import Settings
+            # Reload settings dynamically from disk in case .env was recently saved
+            self.api_key = Settings().ANTHROPIC_API_KEY
 
     def check_spend_cap(self, estimated_cost: float = 0.05):
         current_spend = get_current_spend_usd()

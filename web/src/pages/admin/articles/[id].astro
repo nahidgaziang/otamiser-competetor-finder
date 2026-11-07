@@ -15,6 +15,7 @@ if (Astro.request.method === "POST") {
 
     if (action === "publish") {
       const confirmText = formData.get("confirm_text")?.toString();
+      const overrideGate = formData.get("override_gate") === "true";
       if (confirmText !== "PUBLISH") {
         error = "Type 'PUBLISH' in capital letters to confirm publication.";
       } else {
@@ -27,8 +28,8 @@ if (Astro.request.method === "POST") {
         const currentArt = checkRes.rows[0];
         const isPassed = currentArt?.gate_report?.all_passed === true;
 
-        if (!isPassed) {
-          error = "Refusing to publish: Article failed one or more automated quality gates.";
+        if (!isPassed && !overrideGate) {
+          error = "Refusing to publish: Article failed one or more automated quality gates. Check 'Admin Override' below to confirm you have reviewed the warnings and approve publication.";
         } else {
           await queryAdmin(`
             UPDATE app.articles
@@ -41,10 +42,12 @@ if (Astro.request.method === "POST") {
 
           await queryAdmin(`
             INSERT INTO app.admin_audit_log (action, entity_type, entity_id, actor, details)
-            VALUES ('publish_article', 'article', $1, 'human_admin', '{"channel": "hub"}'::jsonb);
-          `, [id]);
+            VALUES ('publish_article', 'article', $1, 'human_admin', jsonb_build_object('channel', 'hub', 'admin_override', $2::boolean));
+          `, [id, !isPassed]);
 
-          success = "Article published to local comparison hub successfully.";
+          success = !isPassed
+            ? "Article published to local comparison hub with Admin Override."
+            : "Article published to local comparison hub successfully.";
         }
       }
     } else if (action === "unpublish") {
@@ -256,9 +259,22 @@ const gateReport = currentVersion?.gate_report || { all_passed: false, checks: {
             {article.status !== 'published' ? (
               <form method="POST">
                 <input type="hidden" name="action" value="publish" />
+
+                {!gateReport.all_passed && (
+                  <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid #ef4444; border-radius: 6px; padding: 0.85rem; margin-bottom: 0.85rem;">
+                    <div style="font-weight: 600; color: #fca5a5; font-size: 0.85rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
+                      <span>⚠️</span> Quality Gate Action Required
+                    </div>
+                    <label style="display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.8rem; color: #e2e8f0; cursor: pointer; line-height: 1.4;">
+                      <input type="checkbox" name="override_gate" value="true" style="margin-top: 0.15rem;" />
+                      <span><strong>Admin Override:</strong> As Admin, I have reviewed the QA warnings and give final approval to publish this article.</span>
+                    </label>
+                  </div>
+                )}
+
                 <label style="font-size: 0.8rem; color: var(--muted);">Type <strong>PUBLISH</strong> to confirm live deployment to hub:</label>
                 <input type="text" name="confirm_text" placeholder="PUBLISH" required />
-                <button type="submit" class="btn-publish">Confirm &amp; Publish to Hub</button>
+                <button type="submit" class="btn-publish">{gateReport.all_passed ? 'Confirm & Publish to Hub' : 'Override & Publish to Hub'}</button>
               </form>
             ) : (
               <form method="POST">

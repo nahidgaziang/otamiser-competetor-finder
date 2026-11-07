@@ -4,16 +4,18 @@ from typing import Literal
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Find project root where .env resides
+# Find project root and env files
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-_ENV_FILE = _PROJECT_ROOT / ".env"
-if not _ENV_FILE.exists():
-    _ENV_FILE = Path(".env")
+_ENV_FILES = (
+    str(_PROJECT_ROOT / ".env"),
+    str(_PROJECT_ROOT / "web" / ".env"),
+    ".env",
+)
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=str(_ENV_FILE),
+        env_file=_ENV_FILES,
         env_file_encoding="utf-8",
         extra="ignore",
     )
