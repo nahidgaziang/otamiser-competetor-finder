@@ -34,6 +34,20 @@ def register_handler(kind: str):
     return decorator
 
 
+@register_handler("seed_catalog")
+def handle_seed_catalog(payload: dict[str, Any]) -> tuple[dict[str, Any], None]:
+    from compare_pipeline.catalog import seed_catalog
+    res = seed_catalog()
+    return res, None
+
+
+@register_handler("discover")
+def handle_discover(payload: dict[str, Any]) -> tuple[dict[str, Any], None]:
+    from compare_pipeline.discovery.discovery import run_discovery
+    res = run_discovery()
+    return res, None
+
+
 class Worker:
     def __init__(self, poll_interval: float = 2.0, reaper_interval: float = 60.0):
         self.poll_interval = poll_interval

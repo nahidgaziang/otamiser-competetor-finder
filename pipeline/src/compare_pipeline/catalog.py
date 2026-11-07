@@ -13,7 +13,7 @@ from compare_pipeline.models import Competitor, Article
 logger = logging.getLogger("catalog")
 
 # Root directory of style references
-_PROTOTYPE_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+_PROTOTYPE_ROOT = Path(__file__).resolve().parents[4]
 REFERENCES_DIR = _PROTOTYPE_ROOT / "style" / "references"
 
 REFERENCE_SLUGS = {

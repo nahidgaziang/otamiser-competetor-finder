@@ -1,0 +1,50 @@
+# Competitor Discovery Search Queries & Filter Rules
+query_clusters:
+  pricing_software:
+    - "best short term rental dynamic pricing software"
+    - "vacation rental revenue management algorithms"
+    - "hotel automated dynamic pricing tool"
+    - "airbnb pricing optimization software"
+  ota_ranking:
+    - "airbnb search algorithm ranking tool"
+    - "booking com visibility ranking optimization"
+    - "ota search ranking tracker hotel"
+  revenue_consultancy:
+    - "done for you airbnb revenue management services"
+    - "outsourced hotel revenue management company"
+    - "vacation rental yield management consultancy"
+
+blocklist_domains:
+  # Search & social aggregators
+  - "google.com"
+  - "bing.com"
+  - "yahoo.com"
+  - "duckduckgo.com"
+  - "facebook.com"
+  - "twitter.com"
+  - "x.com"
+  - "linkedin.com"
+  - "youtube.com"
+  - "reddit.com"
+  - "quora.com"
+  - "medium.com"
+  - "github.com"
+  - "wikipedia.org"
+  # Review & software directories
+  - "g2.com"
+  - "capterra.com"
+  - "trustpilot.com"
+  - "softwareadvice.com"
+  - "getapp.com"
+  - "trustradius.com"
+  - "producthunt.com"
+  # Listing platforms & OTAs
+  - "airbnb.com"
+  - "booking.com"
+  - "vrbo.com"
+  - "expedia.com"
+  - "tripadvisor.com"
+  - "agoda.com"
+  - "hotels.com"
+  # Brand baseline
+  - "otamiser.com"

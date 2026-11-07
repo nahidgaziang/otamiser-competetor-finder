@@ -735,6 +735,7 @@ dependencies = [
     { name = "alembic" },
     { name = "anthropic" },
     { name = "crawl4ai" },
+    { name = "ddgs" },
     { name = "duckduckgo-search" },
     { name = "exa-py" },
     { name = "httpx" },
@@ -764,6 +765,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.20.1" },
     { name = "anthropic", specifier = ">=2.6.0" },
     { name = "crawl4ai", specifier = ">=0.9.5" },
+    { name = "ddgs", specifier = ">=9.16.1" },
     { name = "duckduckgo-search", specifier = ">=8.1.1" },
     { name = "exa-py", specifier = ">=2.28.0" },
     { name = "httpx", specifier = ">=0.28.1" },
@@ -931,6 +933,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/da/c6/8bb3f0584e7affe13f092906b42fac0a22b6375bf80ed3896bb31fdcb497/dateparser-1.5.0.tar.gz", hash = "sha256:08d62f2c00d3a1e806fc59d40c79e7554e31d84d3b8c6145820af051c92e7292", size = 484678, upload-time = "2026-11-04T12:43:24.729Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7f/58/73739bc1e168f309aeb8cc29b5866a134da8dbd4f69af947fc93462f1e33/dateparser-1.5.0-py3-none-any.whl", hash = "sha256:7c4e088f25458f57db391510035af0878439a6df71d159318dcdb0a7553932e3", size = 373447, upload-time = "2026-11-04T12:43:22.781Z" },
+]
+
+[[package]]
+name = "ddgs"
+version = "9.16.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "lxml" },
+    { name = "primp" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ec/c4/165b9b1581813063847349421c014a8ccc346222a58b3233ba168bf257c1/ddgs-9.16.1.tar.gz", hash = "sha256:0cde5682e5801b838915bcb1d12ade8f2e1ec11763b88d0035a1faa0662b517a", size = 38033, upload-time = "2026-10-23T21:16:42.709Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/60/5f/9388344fe821102459a73d2d49ab5e6769b3bab3f17ecf79fb1f736cf1d6/ddgs-9.16.1-py3-none-any.whl", hash = "sha256:9ac0b3c19d865a9bfbf7bc7cc8090bd43d1e7adfb083a017bbece360a22e21b6", size = 47695, upload-time = "2026-10-23T21:16:41.413Z" },
 ]
 
 [[package]]
