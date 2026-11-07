@@ -68,6 +68,21 @@ if (Astro.request.method === "POST") {
         SELECT app.request_job('push_webflow', jsonb_build_object('article_id', $1::text), 'admin_ui');
       `, [id]);
       success = "Queued push_webflow job for test site.";
+    } else if (action === "regenerate") {
+      const artRes = await queryAdmin(`SELECT competitor_id FROM app.articles WHERE id = $1;`, [id]);
+      const compId = artRes.rows[0]?.competitor_id;
+      if (compId) {
+        await queryAdmin(`
+          SELECT app.request_job('research', jsonb_build_object('competitor_id', $1::text), 'admin_ui');
+        `, [compId]);
+
+        await queryAdmin(`
+          INSERT INTO app.admin_audit_log (action, entity_type, entity_id, actor, details)
+          VALUES ('regenerate_article', 'article', $1, 'admin_user', jsonb_build_object('competitor_id', $2::text));
+        `, [id, compId]);
+
+        success = "Queued automated research & draft generation. Watch the Job Queue or worker terminal.";
+      }
     }
   } catch (e: any) {
     error = e.message;
@@ -168,6 +183,8 @@ const gateReport = currentVersion?.gate_report || { all_passed: false, checks: {
       .check-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #283548; font-size: 0.85rem; }
       .btn-publish { background: var(--green); color: black; font-weight: 600; padding: 0.65rem 1rem; border: none; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 0.5rem; }
       .btn-unpublish { background: #7f1d1d; color: #fca5a5; font-weight: 600; padding: 0.65rem 1rem; border: none; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 0.5rem; }
+      .btn-regenerate { background: #2563eb; color: white; font-weight: 600; padding: 0.65rem 1rem; border: none; border-radius: 6px; cursor: pointer; width: 100%; transition: background 0.15s ease; }
+      .btn-regenerate:hover { background: #1d4ed8; }
       .btn-secondary { background: #1e293b; border: 1px solid var(--border); color: var(--text); padding: 0.65rem 1rem; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 0.5rem; }
       input[type="text"] { width: 100%; box-sizing: border-box; padding: 0.5rem; background: #0f172a; border: 1px solid var(--border); border-radius: 4px; color: white; margin-top: 0.5rem; }
       iframe { width: 100%; height: 700px; border: 1px solid var(--border); border-radius: 8px; background: white; }
@@ -250,6 +267,14 @@ const gateReport = currentVersion?.gate_report || { all_passed: false, checks: {
                 <button type="submit" class="btn-unpublish">Unpublish (Revert to Draft)</button>
               </form>
             )}
+
+            <form method="POST" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+              <input type="hidden" name="action" value="regenerate" />
+              <button type="submit" class="btn-regenerate">↻ Re-generate (Crawl &amp; Write with AI)</button>
+              <p style="font-size: 0.75rem; color: var(--muted); margin: 0.4rem 0 0 0; line-height: 1.4;">
+                Crawls {article.canonical_domain}, gathers verified claims, and generates a fresh draft with Claude.
+              </p>
+            </form>
 
             <form method="POST" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">
               <input type="hidden" name="action" value="push_webflow" />
