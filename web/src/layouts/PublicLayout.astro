@@ -1,0 +1,165 @@
+---
+/**
+ * Shell for the public comparison hub (/compare and /compare/[slug]).
+ * CSP: styles only (no scripts, no external fonts). The middleware also sends X-Robots-Tag: noindex
+ * while this is a prototype; the meta tag below keeps that true if the header is ever dropped.
+ */
+interface Props {
+  title: string;
+  description?: string;
+}
+const { title, description } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    {description && <meta name="description" content={description} />}
+    <meta name="color-scheme" content="light dark" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-bar">
+      <div class="wrap site-bar-inner">
+        <a class="wordmark" href="/compare" aria-label="Otamiser comparisons, home">
+          <span class="wordmark-dot" aria-hidden="true"></span>Otamiser
+          <span class="wordmark-sub">Comparisons</span>
+        </a>
+        <a class="site-bar-link" href="https://www.otamiser.com/" rel="noopener noreferrer">otamiser.com</a>
+      </div>
+    </header>
+    <main id="main">
+      <slot />
+    </main>
+    <footer class="site-foot">
+      <div class="wrap">
+        <p>
+          Comparisons are written from public product information and checked against their sources before
+          publishing. Products change; check each vendor's website for current details.
+        </p>
+        <p class="site-foot-small">© {new Date().getUTCFullYear()} Otamiser</p>
+      </div>
+    </footer>
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    --bg: #ffffff;
+    --surface: #f5f7f9;
+    --surface-2: #eaeef2;
+    --ink: #0d1726;
+    --text: #263241;
+    --muted: #586474;
+    --border: #dde3e9;
+    --brand: #0b6b66;
+    --brand-strong: #08504c;
+    --brand-ink: #ffffff;
+    --brand-soft: #e3f2f0;
+    --yes: #12693f;
+    --yes-soft: #e2f3e9;
+    --no: #a8281d;
+    --no-soft: #fbe9e7;
+    --partial: #7f4d00;
+    --partial-soft: #fcf0d9;
+    --shadow: 0 1px 2px rgb(13 23 38 / 0.06), 0 4px 16px rgb(13 23 38 / 0.05);
+    --radius: 14px;
+    --font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b111a;
+      --surface: #111a26;
+      --surface-2: #192435;
+      --ink: #f2f5f9;
+      --text: #d3dae4;
+      --muted: #9aa6b6;
+      --border: #243145;
+      --brand: #45c4b8;
+      --brand-strong: #6fd6cc;
+      --brand-ink: #04211f;
+      --brand-soft: #0e2e2d;
+      --yes: #6cd5a0;
+      --yes-soft: #10301f;
+      --no: #ff9a8f;
+      --no-soft: #3a1714;
+      --partial: #f2bd68;
+      --partial-soft: #35270d;
+      --shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+      color-scheme: dark;
+    }
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { color: var(--ink); line-height: 1.2; letter-spacing: -0.015em; }
+  a { color: var(--brand); text-underline-offset: 0.18em; }
+  a:hover { color: var(--brand-strong); }
+  :focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; border-radius: 4px; }
+  strong { color: var(--ink); font-weight: 650; }
+  .wrap { width: 100%; max-width: 1140px; margin: 0 auto; padding-inline: 1.25rem; }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+  .skip { position: absolute; left: -999px; top: 0.5rem; background: var(--ink); color: var(--bg); padding: 0.5rem 0.9rem; border-radius: 8px; z-index: 10; }
+  .skip:focus { left: 0.75rem; }
+
+  /* Site bar */
+  .site-bar { border-bottom: 1px solid var(--border); background: var(--bg); }
+  .site-bar-inner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 60px; }
+  .wordmark { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 750; font-size: 1.1rem; color: var(--ink); text-decoration: none; letter-spacing: -0.01em; }
+  .wordmark:hover { color: var(--ink); }
+  .wordmark-dot { width: 0.8rem; height: 0.8rem; border-radius: 4px; background: var(--brand); transform: rotate(45deg); }
+  .wordmark-sub { font-weight: 500; color: var(--muted); padding-left: 0.6rem; border-left: 1px solid var(--border); }
+  .site-bar-link { font-size: 0.9rem; color: var(--muted); text-decoration: none; }
+  .site-bar-link:hover { color: var(--ink); }
+
+  /* Footer */
+  .site-foot { border-top: 1px solid var(--border); margin-top: 4rem; padding-block: 2rem 2.5rem; color: var(--muted); font-size: 0.9rem; }
+  .site-foot p { margin: 0 0 0.5rem; max-width: 70ch; }
+  .site-foot-small { font-size: 0.8rem; }
+
+  /* Shared hero */
+  .hero { background: linear-gradient(180deg, var(--brand-soft), var(--bg)); border-bottom: 1px solid var(--border); padding-block: 2.5rem 2.75rem; }
+  .eyebrow { margin: 0 0 0.6rem; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--brand); }
+  .hero h1 { margin: 0 0 0.9rem; font-size: clamp(1.9rem, 1.3rem + 2.4vw, 2.9rem); font-weight: 780; max-width: 22ch; text-wrap: balance; }
+  .lead { margin: 0; max-width: 62ch; font-size: 1.15rem; color: var(--text); }
+  .crumbs { display: flex; gap: 0.5rem; flex-wrap: wrap; font-size: 0.875rem; color: var(--muted); margin-bottom: 1.5rem; }
+  .crumbs a { color: var(--muted); }
+
+  /* Monogram */
+  .mono { flex: none; display: inline-grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 10px; background: var(--surface-2); color: var(--ink); font-weight: 750; }
+  .mono-us { background: var(--brand); color: var(--brand-ink); }
+
+  /* Comparison table cells */
+  .mark { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.2rem 0.6rem 0.2rem 0.4rem; border-radius: 8px; font-size: 0.875rem; font-weight: 600; line-height: 1.35; }
+  .mark svg { flex: none; width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .mark-yes { background: var(--yes-soft); color: var(--yes); }
+  .mark-no { background: var(--no-soft); color: var(--no); }
+  .mark-partial { background: var(--partial-soft); color: var(--partial); }
+  .cell-text { font-size: 0.95rem; color: var(--ink); }
+  .cell-none { font-size: 0.875rem; color: var(--muted); font-style: italic; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.8rem 1.35rem; border-radius: 10px; font-weight: 650; text-decoration: none; background: var(--brand); color: var(--brand-ink); }
+  .btn:hover { background: var(--brand-strong); color: var(--brand-ink); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html { scroll-behavior: smooth; }
+  }
+</style>

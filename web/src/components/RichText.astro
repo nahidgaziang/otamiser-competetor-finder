@@ -1,0 +1,34 @@
+---
+/**
+ * Renders SourcedParagraph[] (runs with optional bold / href). Text is escaped by Astro; links are
+ * emitted only for URLs that pass safeHref(), otherwise the run is shown as plain text.
+ */
+import { isExternal, list, safeHref, type Paragraph, type Run } from '../lib/article';
+
+interface Props {
+  paras: unknown;
+  class?: string;
+}
+const { paras, class: className } = Astro.props;
+const items = list<Paragraph>(paras);
+---
+
+{items.map((p) =>
+  typeof p === 'string' ? (
+    <p class={className}>{p}</p>
+  ) : (
+    <p class={className}>
+      {list<Run>(p?.runs).map((run) => {
+        const text = typeof run?.text === 'string' ? run.text : '';
+        const href = safeHref(run?.href);
+        const inner = run?.bold ? <strong>{text}</strong> : text;
+        if (!href) return inner;
+        return isExternal(href) ? (
+          <a href={href} target="_blank" rel="noopener noreferrer">{inner}</a>
+        ) : (
+          <a href={href}>{inner}</a>
+        );
+      })}
+    </p>
+  )
+)}

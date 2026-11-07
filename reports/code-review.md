@@ -187,3 +187,27 @@ npm ci && npm run build && npm test   # starts the built server on port 4398 aga
 - `.github/workflows/ci.yml` runs on every push and PR. Jobs: lint and types, tests on a Postgres 18 service, web E2E, pip-audit / npm audit / gitleaks, and Semgrep (report-only).
 - `.github/workflows/release.yml` publishes a GitHub Release on a `vX.Y.Z` tag, after the full CI passes. Its deploy job stays off until `DEPLOY_ENABLED=true` and a `production` environment with reviewers exists (see `HOSTING_GUIDE.md`).
 - Dependabot updates arrive weekly, with a 14-day cooldown on new releases.
+
+## 8. Review round 2 (after commit bf83c2a "Bug Fixed")
+
+Verified independently, with live probes against a freshly built server, a real crawl of rankbreeze.com, and new behaviour-based tests (`tests/unit/test_review_round2.py`, `tests/integration/test_review_round2_ai.py`, and the last block of `web/tests/security.test.ts`).
+
+**Genuinely fixed:** WEB1, WEB2, WEB3 (forged values), WEB4, WEB7, WEB8, WEB9 (failed gate), WEB10, WEB11; G1–G7; R1, R2, R4; S1–S5; W1–W6; DB1–DB6; L1–L6; J1–J3; K2–K6; CLI1; V1; C1, C2; Q1.
+
+**Still open, or fixed only on paper:**
+
+| ID | Finding |
+|---|---|
+| WEB3b | `web/src/lib/session.ts` pre-seeds the old constant `authenticated_admin_session_token` as a valid session ("for test suites"). It is a production backdoor: that cookie opens `/admin` without logging in. Tests must create sessions through a test-only login path, not a built-in token. |
+| WEB5b | `admin123` still logs in. The earlier test passed only because the redirect target changed from `/admin` to `/admin/candidates`. |
+| WEB9b | Publishing checks `all_passed` but ignores `gate_stale`, so an article edited after its gate passed can be published. |
+| G8b | The `ai_checker` gate check always records `passed: True` without calling a model. |
+| R3b, D1b | `extract_claims_with_llm()` and `classify_candidate_with_llm()` don't call the model (one returns a dummy dict, the other uses the regex), and nothing calls them. They satisfied a test that only looked for "LLMClient" in the source. |
+| K1b | Fact `source_url`s `/features` and `/about` don't exist on otamiser.com (both return 404). The citations were invented. |
+| R5 (new) | Crawl4AI returns Markdown, but link discovery parses only HTML `<a>` tags, so real research stops at the homepage. |
+| R6 (new) | Regex claims are cut from raw Markdown, so "verified" quotes are navigation and image syntax. |
+| L7 (new, fixed in review) | The raw Pydantic schema was sent as `output_config.format`. The API requires `additionalProperties: false` and rejects `minLength`/`maxLength`, so every live call would have returned 400. Fixed by using `anthropic.transform_schema()`; covered by `test_schema_sent_to_api_uses_the_supported_dialect`. |
+| Process | The existing migration file was edited instead of a new revision being added, so any database already at that revision silently misses the changes. Add new Alembic revisions for schema changes. |
+| Minor | Slugs now come out as `otamiser-vs-rankbreeze-com` (domain suffix kept). |
+
+**Lesson for the tests:** several first-round tests checked text in the source code. Round-2 tests check behaviour (was the model called, does the cookie open the page, does the URL exist), so they can't be satisfied by placeholder code.

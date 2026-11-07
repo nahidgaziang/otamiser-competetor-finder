@@ -1,5 +1,7 @@
 ---
 import { queryHub } from '../../lib/db';
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import { formatDate, initial } from '../../lib/article';
 
 let comparisons: any[] = [];
 try {
@@ -10,86 +12,73 @@ try {
   `);
   comparisons = res.rows;
 } catch (e) {
-  console.error("Hub query failed:", e);
+  console.error('Hub query failed:', e);
   comparisons = [];
 }
 ---
 
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Competitor Comparisons | Otamiser</title>
-    <style>
-      :root {
-        --bg: #0f172a;
-        --card: #1e293b;
-        --text: #f8fafc;
-        --muted: #94a3b8;
-        --accent: #3b82f6;
-        --border: #334155;
-      }
-      body {
-        margin: 0;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        background-color: var(--bg);
-        color: var(--text);
-        padding: 2rem 1rem;
-      }
-      .container {
-        max-width: 1000px;
-        margin: 0 auto;
-      }
-      h1 { font-size: 2.25rem; margin-bottom: 0.5rem; }
-      p.subtitle { color: var(--muted); font-size: 1.1rem; margin-bottom: 2rem; }
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: 1.5rem;
-      }
-      .card {
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 1.5rem;
-        transition: transform 0.2s, border-color 0.2s;
-        text-decoration: none;
-        color: inherit;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-      }
-      .card:hover {
-        transform: translateY(-2px);
-        border-color: var(--accent);
-      }
-      .card h2 { font-size: 1.25rem; margin: 0 0 0.5rem 0; color: var(--text); }
-      .card p { color: var(--muted); font-size: 0.95rem; line-height: 1.5; margin-bottom: 1rem; }
-      .link { color: var(--accent); font-weight: 600; font-size: 0.9rem; }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <h1>Software Comparisons</h1>
-      <p class="subtitle">Objective feature, algorithm, and execution comparisons for short-term rental and hotel revenue management.</p>
-      
-      <div class="grid">
-        {comparisons.length === 0 ? (
-          <p>No comparisons published yet. Visit the admin dashboard to review and publish drafts.</p>
-        ) : (
-          comparisons.map((c) => (
-            <a href={`/compare/${c.slug}`} class="card">
-              <div>
-                <h2>Otamiser vs {c.competitor_name}</h2>
-                <p>{c.competitor_summary || `Detailed comparison against ${c.canonical_domain}`}</p>
-              </div>
-              <span class="link">Read comparison &rarr;</span>
-            </a>
-          ))
-        )}
-      </div>
+<PublicLayout
+  title="Compare Otamiser | Revenue management software comparisons"
+  description="Side-by-side comparisons of Otamiser and other revenue management and dynamic pricing tools for short-term rentals and hotels."
+>
+  <section class="hero">
+    <div class="wrap">
+      <p class="eyebrow">Comparisons</p>
+      <h1>How Otamiser compares</h1>
+      <p class="lead">
+        Side-by-side comparisons of Otamiser and other revenue management and dynamic pricing tools for
+        short-term rentals and hotels, written from each vendor's public product information.
+      </p>
     </div>
-  </body>
-</html>
+  </section>
 
+  <div class="wrap hub">
+    {comparisons.length === 0 ? (
+      <p class="empty">No comparisons have been published yet. Check back soon.</p>
+    ) : (
+      <>
+        <p class="count">{comparisons.length} {comparisons.length === 1 ? 'comparison' : 'comparisons'}</p>
+        <ul class="grid">
+          {comparisons.map((c) => (
+            <li>
+              <a href={`/compare/${c.slug}`} class="card">
+                <span class="card-head">
+                  <span class="mono" aria-hidden="true">{initial(c.competitor_name)}</span>
+                  <span>
+                    <span class="card-title">Otamiser vs {c.competitor_name}</span>
+                    <span class="card-domain">{c.canonical_domain}</span>
+                  </span>
+                </span>
+                <span class="card-summary">
+                  {c.competitor_summary || `How Otamiser and ${c.competitor_name} compare on features, pricing and fit.`}
+                </span>
+                <span class="card-foot">
+                  <span class="card-date">{formatDate(c.hub_published_at) ?? ''}</span>
+                  <span class="card-link" aria-hidden="true">Read comparison →</span>
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </>
+    )}
+  </div>
+</PublicLayout>
+
+<style>
+  .hub { padding-top: 2.25rem; }
+  .count { margin: 0 0 1rem; color: var(--muted); font-size: 0.9rem; }
+  .empty { padding: 2.5rem 1.5rem; text-align: center; color: var(--muted); background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius); }
+  .grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+  .grid li { display: flex; }
+  .card { flex: 1; display: flex; flex-direction: column; gap: 0.9rem; padding: 1.35rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); color: inherit; text-decoration: none; transition: border-color 0.15s, transform 0.15s; }
+  .card:hover { border-color: var(--brand); color: inherit; }
+  @media (prefers-reduced-motion: no-preference) { .card:hover { transform: translateY(-2px); } }
+  .card-head { display: flex; align-items: center; gap: 0.8rem; }
+  .card-title { display: block; font-weight: 700; color: var(--ink); line-height: 1.3; }
+  .card-domain { display: block; font-size: 0.82rem; color: var(--muted); }
+  .card-summary { color: var(--text); font-size: 0.95rem; line-height: 1.55; flex: 1; }
+  .card-foot { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; padding-top: 0.85rem; border-top: 1px solid var(--border); font-size: 0.85rem; }
+  .card-date { color: var(--muted); }
+  .card-link { color: var(--brand); font-weight: 650; }
+</style>

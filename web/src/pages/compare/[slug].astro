@@ -1,23 +1,27 @@
 ---
 import { queryHub } from '../../lib/db';
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import RichText from '../../components/RichText.astro';
+import FeatureCell from '../../components/FeatureCell.astro';
+import { formatDate, initial, list, safeHref, type Category, type Row } from '../../lib/article';
 
 const { slug } = Astro.params;
 
 let article: any = null;
 try {
-  // Query exclusively from published articles view (status = 'published')
-  const res = await queryHub(`
-    SELECT slug, competitor_name, canonical_domain, content, webflow_html
+  // Only published articles are visible (the view filters on status = 'published').
+  const res = await queryHub(
+    `
+    SELECT slug, competitor_name, canonical_domain, content, hub_published_at, version_created_at
     FROM app.published_articles
     WHERE slug = $1
     LIMIT 1
-  `, [slug]);
-
-  if (res.rows.length > 0) {
-    article = res.rows[0];
-  }
+  `,
+    [slug],
+  );
+  if (res.rows.length > 0) article = res.rows[0];
 } catch (err) {
-  console.error("Error fetching article slug:", err);
+  console.error('Error fetching article slug:', err);
 }
 
 if (!article) {
@@ -25,155 +29,216 @@ if (!article) {
 }
 
 const content = article.content || {};
-const title = content.title || `Otamiser vs ${article.competitor_name}`;
-const metaDesc = content.meta_description || `Comparison between Otamiser and ${article.competitor_name}.`;
+const competitor: string = article.competitor_name;
+const title: string = content.title || `Otamiser vs ${competitor}`;
+const metaDesc: string = content.meta_description || `Comparison between Otamiser and ${competitor}.`;
+const updated = formatDate(article.hub_published_at || article.version_created_at);
+
+const differences = list<{ title?: string; paragraphs?: unknown }>(content.differences);
+const categories = list<Category>(content.comparison_table);
+const faqs = list<{ question?: string; answer?: unknown }>(content.faqs);
+const has = (v: unknown) => list(v).length > 0;
+
+const ctaHref = safeHref(content.cta_button_url) ?? 'https://www.otamiser.com/';
 ---
 
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="robots" content="noindex, nofollow" />
-    <meta name="description" content={metaDesc} />
-    <title>{title}</title>
-    <style>
-      :root {
-        --bg: #ffffff;
-        --text: #1e293b;
-        --muted: #64748b;
-        --border: #e2e8f0;
-        --accent: #2563eb;
-        --accent-light: #eff6ff;
-        --card: #f8fafc;
-      }
-      body {
-        margin: 0;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        color: var(--text);
-        background: var(--bg);
-        line-height: 1.6;
-      }
-      .container { max-width: 860px; margin: 0 auto; padding: 2.5rem 1.25rem; }
-      header { margin-bottom: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: 1.5rem; }
-      h1 { font-size: 2.25rem; line-height: 1.25; margin-bottom: 0.75rem; color: #0f172a; }
-      .meta { color: var(--muted); font-size: 0.95rem; }
-      h2 { font-size: 1.6rem; margin-top: 2.5rem; margin-bottom: 1rem; color: #0f172a; border-bottom: 2px solid var(--accent-light); padding-bottom: 0.4rem; }
-      h3 { font-size: 1.25rem; margin-top: 1.5rem; margin-bottom: 0.5rem; }
-      p { margin-bottom: 1.25rem; }
-      .table-container { overflow-x: auto; margin: 2.5rem 0; }
-      table { width: 100%; border-collapse: collapse; text-align: left; }
-      th, td { padding: 0.85rem 1rem; border: 1px solid var(--border); }
-      th { background: #f1f5f9; font-weight: 600; }
-      .section-row th { background: #e2e8f0; font-size: 1rem; }
-      .check { color: #16a34a; font-weight: bold; font-size: 1.2rem; }
-      .cross { color: #dc2626; font-weight: bold; font-size: 1.1rem; }
-      .partial { color: #ea580c; font-weight: 600; font-size: 0.9rem; }
-      .faq-item { margin-bottom: 1.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 1.25rem; }
-      .cta-box { background: var(--accent-light); border: 1px solid #bfdbfe; border-radius: 8px; padding: 2rem; text-align: center; margin-top: 3.5rem; }
-      .cta-button { display: inline-block; background: var(--accent); color: white; padding: 0.75rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: 600; margin-top: 1rem; }
-    </style>
-  </head>
-  <body>
-    <article class="container">
-      <header>
-        <a href="/compare" style="color: var(--accent); text-decoration: none; font-size: 0.9rem;">&larr; Back to all comparisons</a>
-        <h1>{title}</h1>
-        <div class="meta">Verified factual analysis • Competitor: {article.competitor_name} ({article.canonical_domain})</div>
-      </header>
-
-      <!-- Intro -->
-      {content.intro && content.intro.map((p: any) => (
-        <p>{p.runs ? p.runs.map((r: any) => r.text).join('') : p}</p>
-      ))}
-
-      <!-- Overviews -->
-      <h2>What {article.competitor_name} Does</h2>
-      {content.competitor_overview && content.competitor_overview.map((p: any) => (
-        <p>{p.runs ? p.runs.map((r: any) => r.text).join('') : p}</p>
-      ))}
-
-      <h2>What Otamiser Does</h2>
-      {content.baseline_overview && content.baseline_overview.map((p: any) => (
-        <p>{p.runs ? p.runs.map((r: any) => r.text).join('') : p}</p>
-      ))}
-
-      <!-- Differences -->
-      <h2>Key Operational Differences</h2>
-      {content.differences && content.differences.map((diff: any) => (
-        <div>
-          <h3>{diff.title}</h3>
-          {diff.paragraphs && diff.paragraphs.map((p: any) => (
-            <p>{p.runs ? p.runs.map((r: any) => r.text).join('') : p}</p>
-          ))}
+<PublicLayout title={`${title} | Otamiser`} description={metaDesc}>
+  <section class="hero">
+    <div class="wrap narrow">
+      <nav class="crumbs" aria-label="Breadcrumb">
+        <a href="/compare">All comparisons</a><span aria-hidden="true">/</span><span>{competitor}</span>
+      </nav>
+      <p class="eyebrow">Software comparison</p>
+      <h1>{title}</h1>
+      <p class="lead">{metaDesc}</p>
+      <div class="versus" aria-label="Products compared">
+        <div class="vs-chip">
+          <span class="mono mono-us" aria-hidden="true">O</span>
+          <span><strong>Otamiser</strong><small>otamiser.com</small></span>
         </div>
-      ))}
+        <span class="vs" aria-hidden="true">vs</span>
+        <div class="vs-chip">
+          <span class="mono" aria-hidden="true">{initial(competitor)}</span>
+          <span><strong>{competitor}</strong><small>{article.canonical_domain}</small></span>
+        </div>
+      </div>
+      {updated && <p class="byline">Updated {updated}</p>}
+    </div>
+  </section>
 
-      <!-- Comparison Table -->
-      {content.comparison_table && (
-        <div class="table-container">
-          <table>
+  <article class="wrap article">
+    {has(content.intro) && (
+      <div class="intro">
+        <RichText paras={content.intro} />
+      </div>
+    )}
+
+    {(has(content.competitor_overview) || has(content.baseline_overview)) && (
+      <section aria-labelledby="overview">
+        <h2 id="overview">The two products at a glance</h2>
+        <div class="overview-grid">
+          <div class="panel panel-us">
+            <h3>What Otamiser does</h3>
+            <RichText paras={content.baseline_overview} />
+          </div>
+          <div class="panel">
+            <h3>What {competitor} does</h3>
+            <RichText paras={content.competitor_overview} />
+          </div>
+        </div>
+      </section>
+    )}
+
+    {differences.length > 0 && (
+      <section aria-labelledby="differences">
+        <h2 id="differences">Key differences</h2>
+        <ol class="diffs">
+          {differences.map((d) => (
+            <li class="diff">
+              <h3>{d?.title}</h3>
+              <RichText paras={d?.paragraphs} />
+            </li>
+          ))}
+        </ol>
+      </section>
+    )}
+
+    {categories.length > 0 && (
+      <section aria-labelledby="features">
+        <h2 id="features">Feature comparison</h2>
+        <div class="table-scroll" role="region" aria-labelledby="features" tabindex="0">
+          <table class="ftable">
+            <caption class="sr-only">Features of Otamiser and {competitor}, grouped by category</caption>
             <thead>
               <tr>
-                <th>Feature Comparison</th>
-                <th>{article.competitor_name}</th>
-                <th>Otamiser</th>
+                <th scope="col">Feature</th>
+                <th scope="col" class="col-us">Otamiser</th>
+                <th scope="col">{competitor}</th>
               </tr>
             </thead>
-            <tbody>
-              {content.comparison_table.map((cat: any) => (
-                <>
-                  <tr class="section-row">
-                    <th colspan="3">{cat.category_name}</th>
+            {categories.map((cat) => (
+              <tbody>
+                {cat?.category_name && (
+                  <tr class="cat">
+                    <th scope="colgroup" colspan="3">{cat.category_name}</th>
                   </tr>
-                  {cat.rows && cat.rows.map((row: any) => (
-                    <tr>
-                      <td>{row.feature_name}</td>
-                      <td>
-                        {row.competitor_cell.state === 'yes' && <span class="check" title="Supported">✓</span>}
-                        {row.competitor_cell.state === 'no' && <span class="cross" title="Not supported">✕</span>}
-                        {row.competitor_cell.state === 'partial' && <span class="partial">{row.competitor_cell.text_content || 'Partial'}</span>}
-                        {row.competitor_cell.state === 'text' && <span>{row.competitor_cell.text_content}</span>}
-                      </td>
-                      <td>
-                        {row.baseline_cell.state === 'yes' && <span class="check" title="Included">✓</span>}
-                        {row.baseline_cell.state === 'no' && <span class="cross" title="Not supported">✕</span>}
-                        {row.baseline_cell.state === 'partial' && <span class="partial">{row.baseline_cell.text_content || 'Partial'}</span>}
-                        {row.baseline_cell.state === 'text' && <span>{row.baseline_cell.text_content}</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </>
-              ))}
-            </tbody>
+                )}
+                {list<Row>(cat?.rows).map((row) => (
+                  <tr>
+                    <th scope="row">{row?.feature_name}</th>
+                    <td class="col-us"><FeatureCell cell={row?.baseline_cell} /></td>
+                    <td><FeatureCell cell={row?.competitor_cell} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            ))}
           </table>
         </div>
-      )}
+      </section>
+    )}
 
-      <!-- FAQs -->
-      {content.faqs && (
-        <div>
-          <h2>Frequently Asked Questions</h2>
-          {content.faqs.map((faq: any) => (
-            <div class="faq-item">
-              <h3>{faq.question}</h3>
-              {faq.answer && faq.answer.map((p: any) => (
-                <p>{p.runs ? p.runs.map((r: any) => r.text).join('') : p}</p>
-              ))}
-            </div>
+    {has(content.who_is_it_for) && (
+      <section aria-labelledby="who">
+        <h2 id="who">Which one is right for you?</h2>
+        <div class="panel"><RichText paras={content.who_is_it_for} /></div>
+      </section>
+    )}
+
+    {has(content.pricing_analysis) && (
+      <section aria-labelledby="pricing">
+        <h2 id="pricing">Pricing</h2>
+        <RichText paras={content.pricing_analysis} />
+      </section>
+    )}
+
+    {has(content.results_impact) && (
+      <section aria-labelledby="results">
+        <h2 id="results">Results and impact</h2>
+        <RichText paras={content.results_impact} />
+      </section>
+    )}
+
+    {faqs.length > 0 && (
+      <section aria-labelledby="faq">
+        <h2 id="faq">Frequently asked questions</h2>
+        <div class="faqs">
+          {faqs.map((f, i) => (
+            <details class="faq" open={i === 0}>
+              <summary>{f?.question}</summary>
+              <div class="faq-body"><RichText paras={f?.answer} /></div>
+            </details>
           ))}
         </div>
-      )}
+      </section>
+    )}
 
-      <!-- CTA -->
-      <div class="cta-box">
-        <h2>{content.cta_heading || 'Automate Your OTA Revenue Management'}</h2>
-        <p>{content.cta_description || 'Connect daily search ranking tracking with automated dynamic pricing.'}</p>
-        <a href={content.cta_button_url || 'https://www.otamiser.com'} class="cta-button" target="_blank" rel="noopener noreferrer">
-          {content.cta_button_text || 'Schedule Free Demo'}
-        </a>
-      </div>
-    </article>
-  </body>
-</html>
+    <section class="cta" aria-labelledby="cta">
+      <h2 id="cta">{content.cta_heading || 'See how Otamiser fits your portfolio'}</h2>
+      <p>{content.cta_description || 'Connect daily ranking tracking with automated dynamic pricing.'}</p>
+      <a class="btn" href={ctaHref} rel="noopener noreferrer">{content.cta_button_text || 'Book a demo'}</a>
+    </section>
+  </article>
+</PublicLayout>
 
+<style>
+  .versus { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-top: 1.75rem; }
+  .vs-chip { display: flex; align-items: center; gap: 0.7rem; padding: 0.55rem 1rem 0.55rem 0.55rem; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
+  .vs-chip strong { display: block; line-height: 1.25; }
+  .vs-chip small { display: block; color: var(--muted); font-size: 0.8rem; line-height: 1.3; }
+  .vs { font-size: 0.85rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .byline { margin: 1.25rem 0 0; font-size: 0.875rem; color: var(--muted); }
+
+  .narrow, .article { max-width: 860px; }
+  .article { padding-top: 2.5rem; }
+  .article section { margin-top: 3rem; }
+  .article h2 { font-size: clamp(1.4rem, 1.2rem + 0.8vw, 1.75rem); margin: 0 0 1.1rem; }
+  .article h3 { font-size: 1.15rem; margin: 0 0 0.6rem; }
+  .article p { margin: 0 0 1rem; }
+  .article p:last-child { margin-bottom: 0; }
+  .intro p { font-size: 1.125rem; }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.35rem 1.5rem; }
+  .panel-us { background: var(--brand-soft); border-color: color-mix(in srgb, var(--brand) 30%, var(--border)); }
+  .overview-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
+
+  .diffs { list-style: none; padding: 0; margin: 0; display: grid; gap: 1rem; counter-reset: diff; }
+  .diff { counter-increment: diff; position: relative; padding: 1.35rem 1.5rem 1.35rem 4.25rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); box-shadow: var(--shadow); }
+  .diff::before { content: counter(diff); position: absolute; left: 1.35rem; top: 1.25rem; width: 1.9rem; height: 1.9rem; display: grid; place-items: center; border-radius: 999px; background: var(--brand); color: var(--brand-ink); font-weight: 700; font-size: 0.9rem; }
+
+  .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .ftable { width: 100%; min-width: 300px; border-collapse: collapse; font-size: 0.95rem; }
+  .ftable th, .ftable td { padding: 0.8rem 1rem; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--border); }
+  .ftable thead th { background: var(--surface); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  .ftable thead th.col-us { color: var(--brand); }
+  .ftable tbody th[scope='row'] { font-weight: 550; color: var(--ink); width: 44%; }
+  .ftable td { width: 28%; }
+  .ftable .col-us { background: color-mix(in srgb, var(--brand-soft) 55%, transparent); }
+  .ftable tr.cat th { background: var(--surface-2); color: var(--ink); font-size: 0.85rem; font-weight: 700; padding-block: 0.55rem; }
+  .ftable tbody:last-child tr:last-child > * { border-bottom: 0; }
+
+  .faqs { display: grid; gap: 0.75rem; }
+  .faq { border: 1px solid var(--border); border-radius: 12px; background: var(--bg); }
+  .faq summary { cursor: pointer; list-style: none; padding: 1rem 3rem 1rem 1.25rem; font-weight: 650; color: var(--ink); position: relative; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: '+'; position: absolute; right: 1.25rem; top: 50%; transform: translateY(-50%); font-size: 1.35rem; font-weight: 400; color: var(--brand); }
+  .faq[open] summary::after { content: '\2212'; }
+  .faq-body { padding: 0 1.25rem 1.1rem; }
+
+  .cta { margin-top: 3.5rem; padding: 2.25rem 1.75rem; border-radius: var(--radius); text-align: center; background: var(--ink); color: var(--bg); }
+  .cta h2 { color: var(--bg); margin-bottom: 0.6rem; }
+  .cta p { max-width: 52ch; margin: 0 auto 1.5rem; color: color-mix(in srgb, var(--bg) 80%, var(--ink)); }
+
+  @media (max-width: 560px) {
+    .diff { padding: 1.15rem 1.15rem 1.15rem 3.6rem; }
+    .diff::before { left: 1rem; top: 1.05rem; }
+    .panel { padding: 1.15rem; }
+    .ftable { font-size: 0.875rem; }
+    .ftable th, .ftable td { padding: 0.65rem 0.5rem; }
+    .ftable th:first-child { padding-left: 0.75rem; }
+    .ftable tbody th[scope='row'] { width: 40%; }
+    .ftable td { width: 30%; }
+    .ftable thead th { font-size: 0.7rem; letter-spacing: 0.03em; }
+    .ftable :global(.mark) { padding-right: 0.45rem; font-size: 0.8rem; }
+    .ftable :global(.cell-text) { font-size: 0.85rem; }
+  }
+</style>

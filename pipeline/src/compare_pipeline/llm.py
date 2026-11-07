@@ -107,10 +107,16 @@ class LLMClient:
 
         client = anthropic.Anthropic(api_key=self.api_key)
 
+        # The API's structured-output dialect requires additionalProperties: false on every object
+        # and rejects minLength/maxLength (and minItems > 1). The SDK's public transform_schema()
+        # produces that dialect and moves unsupported limits into descriptions; the full Pydantic
+        # constraints are still enforced by model_validate_json() below.
         output_config = {
             "format": {
                 "type": "json_schema",
-                "schema": response_model.model_json_schema(),
+                "schema": anthropic.transform_schema(
+                    response_model.model_json_schema()
+                ),
             }
         }
 
@@ -130,7 +136,7 @@ class LLMClient:
         raw_text = "{}"
         if response.content:
             for block in response.content:
-                if getattr(block, "type", None) == "text" or hasattr(block, "text"):
+                if getattr(block, "type", None) == "text":
                     raw_text = block.text
                     break
 

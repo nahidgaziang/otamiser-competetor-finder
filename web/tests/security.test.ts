@@ -17,7 +17,7 @@ const db = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 2 });
 
 type Seeded = { competitorId: string; articleId: string; slug: string; marker: string };
 
-async function seedArticle(opts: { status: string; gatePassed: boolean }): Promise<Seeded> {
+async function seedArticle(opts: { status: string; gatePassed: boolean; content?: object }): Promise<Seeded> {
   const tag = randomUUID().slice(0, 8);
   const marker = `E2E-MARKER-${tag}`;
   const comp = await db.query(
@@ -29,7 +29,7 @@ async function seedArticle(opts: { status: string; gatePassed: boolean }): Promi
     `INSERT INTO app.articles (competitor_id, slug, status) VALUES ($1, $2, $3) RETURNING id`,
     [comp.rows[0].id, slug, opts.status],
   );
-  const content = { title: `Draft ${marker}`, meta_description: 'x'.repeat(130) };
+  const content = { title: `Draft ${marker}`, meta_description: 'x'.repeat(130), ...opts.content };
   const ver = await db.query(
     `INSERT INTO app.article_versions (article_id, version_number, content, webflow_html, gate_report)
      VALUES ($1, 1, $2, $3, $4) RETURNING id`,
@@ -76,6 +76,60 @@ describe('public comparison hub', () => {
     const res = await fetch(`${BASE}/compare/${a.slug}`, { redirect: 'manual' });
     const body = res.status === 200 ? await res.text() : '';
     expect(body).not.toContain(a.marker);
+  });
+
+  it('renders every article section, keeps bold and links, and lists Otamiser first in the table', async () => {
+    const para = (...runs: object[]) => ({ runs });
+    const a = await seedArticle({
+      status: 'published',
+      gatePassed: true,
+      content: {
+        intro: [para({ text: 'Intro with ' }, { text: 'BOLD-RUN', bold: true }, { text: ' and ' }, { text: 'LINK-RUN', href: 'https://www.otamiser.com/' })],
+        competitor_overview: [para({ text: 'COMP-OVERVIEW' })],
+        baseline_overview: [para({ text: 'BASE-OVERVIEW' })],
+        differences: [{ title: 'DIFF-TITLE', paragraphs: [para({ text: 'diff body' })] }],
+        comparison_table: [
+          {
+            category_name: 'CAT-NAME',
+            rows: [
+              { feature_name: 'FEATURE-ROW', competitor_cell: { state: 'no' }, baseline_cell: { state: 'yes' } },
+              { feature_name: 'PARTIAL-ROW', competitor_cell: { state: 'partial', text_content: 'PARTIAL-TEXT' }, baseline_cell: { state: 'text', text_content: 'FREE-TEXT' } },
+            ],
+          },
+        ],
+        who_is_it_for: [para({ text: 'WHO-FOR' })],
+        pricing_analysis: [para({ text: 'PRICING-TEXT' })],
+        results_impact: [para({ text: 'RESULTS-TEXT' })],
+        faqs: [{ question: 'FAQ-Q', answer: [para({ text: 'FAQ-A' })] }],
+        cta_heading: 'CTA-HEAD',
+      },
+    });
+    const html = await (await fetch(`${BASE}/compare/${a.slug}`)).text();
+    for (const s of ['COMP-OVERVIEW', 'BASE-OVERVIEW', 'DIFF-TITLE', 'CAT-NAME', 'FEATURE-ROW', 'PARTIAL-TEXT', 'FREE-TEXT', 'WHO-FOR', 'PRICING-TEXT', 'RESULTS-TEXT', 'FAQ-Q', 'FAQ-A', 'CTA-HEAD']) {
+      expect(html, s).toContain(s);
+    }
+    expect(html).toMatch(/<strong[^>]*>BOLD-RUN<\/strong>/);
+    expect(html).toMatch(/<a href="https:\/\/www\.otamiser\.com\/"[^>]*>LINK-RUN<\/a>/);
+    const head = /<thead[^>]*>([\s\S]*?)<\/thead>/.exec(html)?.[1] ?? '';
+    expect(head.indexOf('Otamiser')).toBeGreaterThan(-1);
+    expect(head.indexOf('Otamiser')).toBeLessThan(head.indexOf(`E2E ${a.marker}`));
+  });
+
+  it('never turns model-written javascript: or protocol-relative URLs into links', async () => {
+    const a = await seedArticle({
+      status: 'published',
+      gatePassed: true,
+      content: {
+        intro: [{ runs: [{ text: 'EVIL-RUN', href: 'javascript:alert(1)' }, { text: 'SLASH-RUN', href: '//evil.example/x' }] }],
+        cta_button_url: ' JavaScript:alert(document.cookie)',
+        cta_button_text: 'CTA-BUTTON',
+      },
+    });
+    const html = await (await fetch(`${BASE}/compare/${a.slug}`)).text();
+    expect(html).toContain('EVIL-RUN');
+    expect(html.toLowerCase()).not.toContain('javascript:');
+    expect(html).not.toContain('evil.example');
+    expect(html).toMatch(/<a class="btn" href="https:\/\/www\.otamiser\.com\/"[^>]*>CTA-BUTTON<\/a>/);
   });
 
   it('sends noindex, nosniff and anti-framing headers', async () => {
@@ -180,5 +234,27 @@ describe('admin actions with a session', () => {
   it('BUG-WEB11: accepts same-origin form posts from the configured host 127.0.0.1', async () => {
     const res = await post('/api/trigger-job', { kind: 'discover' }, { ...SESSION, origin: BASE });
     expect(res.status).toBe(302);
+  });
+});
+
+describe('second review round (after the "Bug Fixed" commit)', () => {
+  it.fails('BUG-WEB3b: the old hard-coded token is not a valid session (session.ts pre-seeds it as a backdoor)', async () => {
+    const res = await fetch(`${BASE}/admin`, {
+      redirect: 'manual',
+      headers: { cookie: 'admin_session=authenticated_admin_session_token' },
+    });
+    expect(res.status).toBe(302);
+  });
+
+  it.fails('BUG-WEB5b: the published default password admin123 does not create a session', async () => {
+    const res = await post('/admin/login', { email: 'admin@otamiser.local', password: 'admin123' });
+    expect(res.headers.get('set-cookie') ?? '').not.toContain('admin_session=');
+  });
+
+  it.fails('BUG-WEB9b: an article edited after its gate passed (gate_stale) cannot be published', async () => {
+    const a = await seedArticle({ status: 'needs_review', gatePassed: true });
+    await db.query(`UPDATE app.article_versions SET gate_stale = true WHERE article_id = $1`, [a.articleId]);
+    await post(`/admin/articles/${a.articleId}`, { action: 'publish', confirm_text: 'PUBLISH' }, SESSION);
+    expect(await articleStatus(a.articleId)).not.toBe('published');
   });
 });

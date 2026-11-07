@@ -1,0 +1,32 @@
+---
+/** One comparison-table cell. Every state has visible text, so it never relies on colour or icons alone. */
+import type { Cell } from '../lib/article';
+
+interface Props {
+  cell?: Cell;
+}
+const { cell } = Astro.props;
+const state = cell?.state;
+const text = typeof cell?.text_content === 'string' ? cell.text_content.trim() : '';
+---
+
+{state === 'yes' ? (
+  <span class="mark mark-yes">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" /></svg>
+    <span>{text || 'Yes'}</span>
+  </span>
+) : state === 'no' ? (
+  <span class="mark mark-no">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" /></svg>
+    <span>{text || 'No'}</span>
+  </span>
+) : state === 'partial' ? (
+  <span class="mark mark-partial">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 8h8" /></svg>
+    <span>{text || 'Partial'}</span>
+  </span>
+) : state === 'text' && text ? (
+  <span class="cell-text">{text}</span>
+) : (
+  <span class="cell-none">Not stated</span>
+)}
