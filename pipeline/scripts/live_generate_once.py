@@ -21,7 +21,8 @@ from sqlalchemy import text
 from compare_pipeline import generation, research
 from compare_pipeline.config import settings
 from compare_pipeline.db import get_pipeline_session
-from compare_pipeline.llm import LLMClient
+from compare_pipeline.llm import LAST_RESPONSE_PATH, LLMClient
+from compare_pipeline.models_article import ArticleDraft
 from compare_pipeline.models import Competitor
 
 
@@ -46,13 +47,28 @@ def main() -> int:
         help="use a local stand-in instead of the model",
     )
     ap.add_argument(
+        "--from-file",
+        metavar="JSON",
+        help="replay a saved model answer (e.g. ../reports/last_llm_response.json) instead of calling the model",
+    )
+    ap.add_argument(
         "--force",
         action="store_true",
         help="call the model even if research found no verified claims",
     )
     args = ap.parse_args()
 
-    if args.dry_run:
+    if args.from_file:
+        saved = Path(args.from_file).read_text(encoding="utf-8")
+        ArticleDraft.model_validate_json(
+            saved
+        )  # fail here, before touching the database
+        LLMClient.generate_structured = lambda self, **kw: (
+            ArticleDraft.model_validate_json(saved)
+        )  # type: ignore[method-assign]  # noqa: E731
+        args.dry_run = True  # no model call, no research gate
+        print(f"REPLAY of {args.from_file}: the model will NOT be called.\n")
+    elif args.dry_run:
         LLMClient.generate_structured = _stand_in  # type: ignore[method-assign]
         print("DRY RUN: the model will NOT be called.\n")
     elif not settings.ANTHROPIC_API_KEY:
@@ -104,7 +120,13 @@ def main() -> int:
         with get_pipeline_session() as s:
             result = generation.generate_comparison_draft(s, comp_id)
     except Exception as exc:  # noqa: BLE001 - report and still show the cost that was logged
-        print(f"      Generation FAILED: {type(exc).__name__}: {str(exc)[:400]}")
+        print(f"      Generation FAILED: {type(exc).__name__}: {str(exc)[:900]}")
+        if not args.dry_run and LAST_RESPONSE_PATH.exists():
+            print(
+                f"      The paid answer is saved at {LAST_RESPONSE_PATH}. Fix the fields named above by hand,\n"
+                f"      then finish WITHOUT a new call:  uv run python scripts/live_generate_once.py "
+                f'--domain {args.domain} --name "{args.name}" --from-file "{LAST_RESPONSE_PATH}"'
+            )
 
     # 4. Report
     with get_pipeline_session() as s:

@@ -47,3 +47,4 @@ coverage.xml
 # OS artifacts
 .DS_Store
 Thumbs.db
+reports/last_llm_response.json

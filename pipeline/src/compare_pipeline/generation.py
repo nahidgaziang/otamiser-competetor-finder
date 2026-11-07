@@ -57,6 +57,13 @@ Write a comprehensive, objective comparison article between Otamiser and {comp.n
 Ensure every factual paragraph cites a claim_id or fact_id.
 Prose length must be between 900 and 1,600 words.
 
+Hard limits (an answer that breaks any of these is rejected):
+- title: at most 60 characters, including spaces
+- meta_description: between 120 and 160 characters, including spaces
+- intro: 1 to 3 paragraphs; differences: 2 to 5 sections
+- comparison_table: at least 3 categories, each with at least 2 rows
+- faqs: 4 to 6 questions
+
 Verified Competitor Claims:
 {claims_context or "No custom claims, focus on general dynamic pricing architecture."}
 

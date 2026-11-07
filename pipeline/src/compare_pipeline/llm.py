@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, TypeVar
 
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from sqlalchemy import text
 
 from compare_pipeline.config import settings
@@ -22,6 +22,17 @@ T = TypeVar("T", bound=BaseModel)
 
 class SpendCapExceededError(Exception):
     """Raised when aggregate AI inference cost exceeds hard spend cap ($5.00 USD)."""
+
+
+class LLMResponseError(Exception):
+    """The model answered (and was billed) but the answer can't be used: refusal, truncation, bad JSON."""
+
+
+# Every raw model answer is kept here, so a paid response is never lost even if validation fails.
+# It can be fixed by hand and replayed without a new call (scripts/live_generate_once.py --from-file).
+LAST_RESPONSE_PATH = (
+    Path(__file__).resolve().parents[3] / "reports" / "last_llm_response.json"
+)
 
 
 def load_model_config() -> dict[str, Any]:
@@ -152,7 +163,33 @@ class LLMClient:
             response_preview=raw_text[:200],
         )
 
-        return response_model.model_validate_json(raw_text)
+        try:
+            LAST_RESPONSE_PATH.parent.mkdir(parents=True, exist_ok=True)
+            LAST_RESPONSE_PATH.write_text(raw_text, encoding="utf-8")
+        except OSError as exc:  # never let bookkeeping hide the real result
+            logger.warning("Could not save raw response: %s", exc)
+
+        stop_reason = getattr(response, "stop_reason", None)
+        if stop_reason == "refusal":
+            raise LLMResponseError(
+                f"Model declined the request (stop_reason=refusal): {getattr(response, 'stop_details', None)}"
+            )
+        if stop_reason == "max_tokens":
+            raise LLMResponseError(
+                f"Answer was cut off at max_tokens; partial JSON saved to {LAST_RESPONSE_PATH}"
+            )
+
+        try:
+            return response_model.model_validate_json(raw_text)
+        except ValidationError as exc:
+            problems = "; ".join(
+                f"{'.'.join(str(p) for p in e['loc'])}: {e['msg']}"
+                for e in exc.errors()[:8]
+            )
+            raise LLMResponseError(
+                f"Answer broke {exc.error_count()} schema rule(s): {problems}. "
+                f"Raw answer saved to {LAST_RESPONSE_PATH}"
+            ) from exc
 
     def _log_call(
         self,
