@@ -29,3 +29,4 @@ export const POST: APIRoute = async ({ request, redirect }) => {
     return new Response('Internal failure processing request.', { status: 500 });
   }
 };
+
