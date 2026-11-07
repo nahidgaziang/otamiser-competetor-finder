@@ -1,0 +1,46 @@
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+
+# Internal Agent Instructions & Developer IDE
+*AGENT*
+*agent*
+.vscode/
+.idea/
+
+# Documents, PDFs & Personal Notes
+*.pdf
+*notes*.md
+*personal*.md
+scratch/
+tmp/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node & Frontend
+node_modules/
+.astro/
+dist/
+
+# Local database & temp volumes
+data/
+*.sqlite
+*.db
+
+# Reports & Metrics
+reports/raw/
+
+# OS artifacts
+.DS_Store
+Thumbs.db

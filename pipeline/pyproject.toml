@@ -1,0 +1,37 @@
+[project]
+name = "compare-pipeline"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.20.1",
+    "anthropic>=2.6.0",
+    "crawl4ai>=0.9.5",
+    "duckduckgo-search>=8.1.1",
+    "exa-py>=2.28.0",
+    "httpx>=0.28.1",
+    "nh3>=0.3.7",
+    "psycopg[binary]>=3.3.8",
+    "pydantic>=2.14.3",
+    "pydantic-settings>=2.16.2",
+    "pyyaml>=6.0.3",
+    "rapidfuzz>=3.14.6",
+    "sqlalchemy>=2.1.8",
+    "tavily-python>=0.8.5",
+    "tenacity>=9.2.1",
+    "tldextract>=5.4.0",
+    "trafilatura>=2.3.1",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.1",
+    "pytest>=9.2.0",
+    "respx>=0.23.1",
+    "ruff>=0.17.4",
+]
