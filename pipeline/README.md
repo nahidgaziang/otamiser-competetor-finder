@@ -1,6 +1,6 @@
-# Otamiser Competitor Intelligence Pipeline
+# Competitor Intelligence Processing Pipeline
 
-Automated competitor discovery, evidence-backed research, comparison-article generation, and quality gate system for Otamiser.
+Automated competitor discovery, evidence-backed research, comparison-article generation, and quality gate system.
 
 ## Architecture & Database (PostgreSQL 18)
 
